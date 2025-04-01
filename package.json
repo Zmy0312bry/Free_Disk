@@ -1,0 +1,15 @@
+{
+  "name": "free_disk",
+  "version": "1.0.0",
+  "description": "This project is backed of Baipiao Disk",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://gitee.com/zhao-mingyuan0312/free_disk-baackend.git"
+  },
+  "author": "Zhao",
+  "license": "ISC"
+}
