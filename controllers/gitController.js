@@ -22,15 +22,15 @@ exports.gitPush = async function(req, res) {
             });
         }
 
-        // 确保文件路径在 public 目录下
-        const publicDir = path.join(process.cwd(), gitConfig.publicDirName);
-        const fullPath = path.join(publicDir, filePath);
+        // 确保文件路径在 public/temp 目录下
+        const repoPath = path.join(process.cwd(), gitConfig.repoPath);
+        const fullPath = path.join(repoPath, filePath);
         
-        // 验证文件路径是否在 public 目录下
-        if (!fileUtils.validateFilePath(fullPath, publicDir)) {
+        // 验证文件路径是否在仓库目录下
+        if (!fileUtils.validateFilePath(fullPath, repoPath)) {
             return res.status(400).json({ 
                 success: false, 
-                message: '文件只能在 public 目录下创建或修改' 
+                message: '文件只能在仓库目录下创建或修改' 
             });
         }
         

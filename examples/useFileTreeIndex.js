@@ -4,40 +4,61 @@
 
 // 假设我们已经从API获取了文件树
 const fileTreeResponse = {
-  success: true,
-  message: '获取文件树成功',
-  data: {
-    tree: { /* 原始树结构 */ },
-    index: { /* 索引树结构 */ }
+    "success": true,
+    "message": "获取文件树成功",
+    "data": {
+      "index": {
+        "root": {
+          ".gitignore": {},
+          "app.js": {},
+          "config": {
+            "gitConfig.js": {}
+          },
+          "controllers": {
+            "gitController.js": {},
+            "gitTreeController.js": {},
+            "sshController.js": {}
+          },
+          "examples": {
+            "useFileTreeIndex.js": {}
+          },
+          "package.json": {},
+          "public": {
+            "3333.txt": {},
+            "hello.txt": {},
+            "hello1.txt": {},
+            "hello5.txt": {},
+            "temp": {
+              "gitee_id_rsa_1745845010860.pub": {},
+              "id_ed25519_1745311729219.pub": {},
+              "id_test_1745312938693.pub": {}
+            },
+            "this.txt": {}
+          },
+          "readme.md": {},
+          "routes": {
+            "git-tree.js": {},
+            "git.js": {},
+            "index.js": {},
+            "ssh.js": {}
+          },
+          "utils": {
+            "fileUtils.js": {},
+            "gitTreeUtils.js": {},
+            "gitUtils.js": {}
+          }
+        }
+      }
+    }
   }
-};
 
 // 从响应中获取索引树
 const indexedTree = fileTreeResponse.data.index;
+console.log('完整索引数据:', indexedTree);
 
-// 示例1: 访问特定文件夹
-const folder111 = indexedTree['111'];
-console.log('111文件夹内容:', folder111);
+const root = indexedTree.root.public.temp;
+console.log('根目录:', root);
 
-// 示例2: 访问嵌套路径
-const nestedFile = indexedTree['folder']['subfolder']['file.txt'];
-console.log('嵌套文件信息:', nestedFile);
-
-// 示例3: 检查路径是否存在
-function pathExists(tree, path) {
-  const segments = path.split('/').filter(Boolean);
-  let current = tree;
-  
-  for (const segment of segments) {
-    if (!current[segment]) {
-      return false;
-    }
-    current = current[segment];
-  }
-  
-  return true;
-}
-
-// 使用方法检查路径
-console.log('路径 folder/subfolder 存在:', pathExists(indexedTree, 'folder/subfolder'));
-console.log('路径 nonexistent/path 存在:', pathExists(indexedTree, 'nonexistent/path'));
+// 提取第一层的所有项目（包括文件和目录）
+const firstLevelItems = Object.keys(root);
+console.log('第一层所有项目:', firstLevelItems);

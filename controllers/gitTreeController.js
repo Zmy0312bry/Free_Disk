@@ -44,7 +44,6 @@ exports.getGitTree = (req, res) => {
                 success: true, 
                 message: '获取文件树成功', 
                 data: {
-                    tree: fileTree,     // 原始树结构
                     index: indexedTree  // 可索引的树结构
                 }
             });
@@ -59,56 +58,33 @@ exports.getGitTree = (req, res) => {
 };
 
 /**
- * 创建一个可以通过路径索引访问的文件树
+ * 创建一个可以通过文件名层次结构访问的文件树
  * @param {Object} originalTree - 原始文件树结构
  * @return {Object} 可索引的文件树
  */
 function createIndexedTree(originalTree) {
-    const indexedTree = {};
-    
     // 递归处理文件树，构建索引
-    function processNode(node, currentPath = '') {
-        // 如果是文件，则直接添加到当前路径
-        if (node.type === 'blob') {
-            setNestedValue(indexedTree, currentPath.split('/').filter(Boolean), node);
-            return;
+    function processNode(node) {
+        const result = {};
+        
+        if (node.children && node.children.length > 0) {
+            // 遍历所有子节点
+            for (const child of node.children) {
+                if (child.type === 'folder') {
+                    // 如果是文件夹，递归处理并添加到结果中
+                    result[child.name] = processNode(child);
+                } else {
+                    // 如果是文件，只添加文件名作为键，值为空对象
+                    result[child.name] = {};
+                }
+            }
         }
         
-        // 如果是目录，处理其子项
-        if (node.children) {
-            // 为当前目录创建索引节点
-            if (currentPath) {
-                setNestedValue(indexedTree, currentPath.split('/').filter(Boolean), {...node, children: {}});
-            }
-            
-            // 处理子项
-            for (const [childName, childNode] of Object.entries(node.children)) {
-                const childPath = currentPath ? `${currentPath}/${childName}` : childName;
-                processNode(childNode, childPath);
-            }
-        }
+        return result;
     }
     
-    processNode(originalTree);
-    return indexedTree;
-}
-
-/**
- * 在嵌套对象中设置值
- * @param {Object} obj - 目标对象
- * @param {Array} path - 路径数组
- * @param {*} value - 要设置的值
- */
-function setNestedValue(obj, path, value) {
-    if (path.length === 1) {
-        obj[path[0]] = value;
-        return;
-    }
-    
-    const current = path[0];
-    if (!obj[current]) {
-        obj[current] = {};
-    }
-    
-    setNestedValue(obj[current], path.slice(1), value);
+    // 从根目录开始构建索引
+    return {
+        'root': processNode(originalTree)
+    };
 }

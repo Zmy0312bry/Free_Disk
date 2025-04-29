@@ -1,16 +1,28 @@
 const simpleGit = require('simple-git');
 const path = require('path');
 const fs = require('fs');
+const gitConfig = require('../config/gitConfig');
 
-// 初始化 Git 实例
-const git = simpleGit();
+// 获取 Git 仓库路径
+const getRepoPath = () => path.join(process.cwd(), gitConfig.repoPath);
+
+// 初始化 Git 实例，指定工作目录
+const git = simpleGit({ baseDir: getRepoPath() });
 
 /**
  * 检查Git仓库是否已初始化
  * @returns {Promise<boolean>} 是否已初始化
  */
 exports.checkGitInitialized = async function() {
-    const isInitialized = fs.existsSync(path.join(process.cwd(), '.git'));
+    const repoPath = getRepoPath();
+    
+    // 确保仓库目录存在
+    if (!fs.existsSync(repoPath)) {
+        fs.mkdirSync(repoPath, { recursive: true });
+        console.log(`创建仓库目录: ${repoPath}`);
+    }
+    
+    const isInitialized = fs.existsSync(path.join(repoPath, '.git'));
     if (!isInitialized) {
         await git.init();
         console.log('Git 仓库已初始化');
@@ -50,7 +62,9 @@ exports.setupRemoteRepository = async function(remoteName, remoteUrl) {
  * @param {string} message 提交信息
  */
 exports.commitChanges = async function(filePath, message) {
-    await git.add(filePath);
+    // 转换为相对于仓库的路径
+    const repoRelativePath = path.relative(getRepoPath(), filePath);
+    await git.add(repoRelativePath);
     const status = await git.status();
     if (status.not_added.length > 0 || status.modified.length > 0) {
         await git.commit(message);
