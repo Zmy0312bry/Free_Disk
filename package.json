@@ -1,16 +1,17 @@
 {
-  "name": "free_disk",
+  "name": "free-disk",
   "version": "1.0.0",
-  "description": "This project is backed of Baipiao Disk",
-  "main": "index.js",
+  "description": "Free Disk project",
+  "main": "app.js",
   "scripts": {
+    "dev": "nodemon app.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "repository": {
-    "type": "git",
-    "url": "https://gitee.com/zhao-mingyuan0312/free_disk-baackend.git"
+  "dependencies": {
+    "express": "^4.17.1",
+    "body-parser": "^1.19.0"
   },
-  "author": "Zhao",
-  "license": "ISC"
-  
+  "devDependencies": {
+    "nodemon": "^2.0.15"
+  }
 }
