@@ -1,7 +1,7 @@
 # 开发随记
 
 ## 稀疏检出注意事项
-
+后端随记，前端可以不管
 ### 启动初始化
 ```cmd
 git config core.sparseCheckout true
@@ -116,3 +116,16 @@ console.log('第一层所有项目:', firstLevelItems);
   }
   ```
 上述所示路径在仓库中实际如下：![示意图](./readme_picture/image.png)
+
+### 三、上传文件
+1. 请求接口：http://localhost:3000/git/upload-and-push
+2. 接口的样式，其实就是需要附上的信息: 
+  - `sourcePath`是电脑里相应文件的路径，要求绝对路径(这里是linux的路径，不用管，就是右键复制文件路径复制的即为绝对路径)
+  - `targetRelativePath`需要放到哪个文件夹下，即可以理解为用户要当前位于哪个文件夹，也就要放在哪，这个是仓库内的路径
+json格式如下
+```json
+  {
+    "sourcePath": "/home/zhao/Free_Disk/readme.md",
+    "targetRelativePath": "888/777/666"
+  }
+```
