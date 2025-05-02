@@ -2,6 +2,9 @@ const path = require('path');
 const fileUtils = require('../utils/fileUtils');
 const gitUtils = require('../utils/gitUtils');
 const gitConfig = require('../config/gitConfig');
+const { exec } = require('child_process');
+const util = require('util');
+const execPromise = util.promisify(exec);
 
 /**
  * Git推送控制器
@@ -158,7 +161,7 @@ exports.initRepository = async function(req, res) {
  */
 exports.sparsePull = async function(req, res) {
     try {
-        const { workspace, patterns } = req.body;
+        const { workspace } = req.body;
 
         // 允许workspace可以为空字符串，表示仓库根目录
         if (workspace === undefined) {
@@ -168,20 +171,9 @@ exports.sparsePull = async function(req, res) {
             });
         }
 
-        // patterns参数现在变为可选，因为sparse-checkout可以直接基于workspace路径设置
-        // 如果提供了patterns，则进行验证
-        if (patterns && (!Array.isArray(patterns) || patterns.length === 0)) {
-            return res.status(400).json({
-                success: false,
-                message: '如果提供patterns参数，请确保是有效的稀疏检出模式数组'
-            });
-        }
 
         // 执行 pull 同步
         await gitUtils.pull(gitConfig.remoteName, gitConfig.defaultBranch, workspace);
-
-        // 初始化稀疏检出配置
-        await gitUtils.initSparseCheckout(workspace);
         
         res.json({
             success: true,
@@ -195,6 +187,83 @@ exports.sparsePull = async function(req, res) {
             success: false,
             message: `稀疏更新失败: ${error.message}`,
             error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
+    }
+};
+
+/**
+ * 上传文件并推送到Git仓库
+ * @param {Object} req - 请求对象
+ * @param {Object} res - 响应对象
+ */
+exports.uploadAndPush = async (req, res) => {
+    try {
+        const { sourcePath, targetRelativePath } = req.body;
+        
+        if (!sourcePath || !targetRelativePath) {
+            return res.status(400).json({ 
+                success: false, 
+                message: '缺少必要参数：源文件路径或目标相对路径'
+            });
+        }
+        
+        // 使用gitConfig中的配置获取仓库路径
+        const repoPath = path.join(process.cwd(), gitConfig.repoPath);
+        const targetDir = path.join(repoPath, targetRelativePath);
+        
+        // 确保目标目录在仓库路径内
+        if (!fileUtils.validateFilePath(targetDir, repoPath)) {
+            return res.status(400).json({
+                success: false,
+                message: '目标目录必须在仓库路径内'
+            });
+        }
+        
+        // 确保目录存在
+        fileUtils.ensureDirectoryExists(targetDir);
+        
+        // 进入仓库目录执行git操作
+        process.chdir(repoPath);
+        
+        // 步骤1：检查是否有冲突
+        console.log('检查是否有冲突...');
+        const { stdout: diffOutput } = await execPromise(`git diff ${gitConfig.defaultBranch} ${gitConfig.remoteName}/${gitConfig.defaultBranch}`);
+        
+        if (diffOutput.trim() !== '') {
+            console.log('检测到潜在冲突，执行git pull...');
+            await execPromise(`git pull ${gitConfig.remoteName} ${gitConfig.defaultBranch}`);
+        }
+        
+        // 步骤2：上传文件（复制文件，不使用软链接）
+        console.log('复制文件...');
+        const fileName = fileUtils.getFileName(sourcePath);
+        const targetPath = path.join(targetDir, fileName);
+        
+        // 使用复制替代软链接
+        await fileUtils.copyFile(sourcePath, targetPath);
+        
+        // 添加新文件到git
+        await execPromise(`git add "${targetPath}"`);
+        await execPromise(`git commit -m "${gitConfig.defaultCommitMessage}: ${fileName}"`);
+        
+        // 步骤3：推送到远程仓库
+        console.log('推送到远程仓库...');
+        await execPromise(`git push ${gitConfig.remoteName} ${gitConfig.defaultBranch}`);
+        
+        res.status(200).json({
+            success: true,
+            message: '文件上传并推送成功',
+            file: {
+                name: fileName,
+                path: targetPath
+            }
+        });
+    } catch (error) {
+        console.error('上传文件并推送时出错:', error);
+        res.status(500).json({
+            success: false,
+            message: '上传文件并推送失败',
+            error: error.message
         });
     }
 };

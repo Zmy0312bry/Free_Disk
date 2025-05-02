@@ -13,4 +13,7 @@ router.post('/sparse-pull', gitController.sparsePull);
 // 仓库初始化路由
 router.post('/init-repo', gitController.initRepository);
 
+// 上传文件并推送到Git仓库
+router.post('/upload-and-push', gitController.uploadAndPush);
+
 module.exports = router;

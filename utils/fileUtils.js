@@ -29,3 +29,30 @@ exports.ensureDirectoryExists = function(dirPath) {
 exports.writeFileContent = function(filePath, content) {
     fs.writeFileSync(filePath, content, 'utf8');
 };
+
+
+/**
+ * 获取文件名
+ * @param {string} filePath 文件路径
+ * @returns {string} 文件名
+ */
+exports.getFileName = function(filePath) {
+    return path.basename(filePath);
+};
+
+const fsPromises = require('fs').promises;
+
+/**
+ * 复制文件
+ * @param {string} source - 源文件路径
+ * @param {string} target - 目标文件路径
+ */
+exports.copyFile = async function(source, target) {
+    try {
+        await fsPromises.copyFile(source, target);
+        console.log(`已复制文件: ${source} -> ${target}`);
+    } catch (error) {
+        console.error(`复制文件失败: ${error.message}`);
+        throw error;
+    }
+};

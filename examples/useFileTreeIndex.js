@@ -7,7 +7,6 @@ const fileTreeResponse = {
     "success": true,
     "message": "获取文件树成功",
     "data": {
-      "index": {
         "root": {
           ".gitignore": {},
           "app.js": {},
@@ -47,13 +46,12 @@ const fileTreeResponse = {
             "gitTreeUtils.js": {},
             "gitUtils.js": {}
           }
-        }
       }
     }
   }
 
 // 从响应中获取索引树
-const indexedTree = fileTreeResponse.data.index;
+const indexedTree = fileTreeResponse.data;
 console.log('完整索引数据:', indexedTree);
 
 const root = indexedTree.root.public.temp;

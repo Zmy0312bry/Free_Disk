@@ -43,9 +43,8 @@ exports.getGitTree = (req, res) => {
             res.json({ 
                 success: true, 
                 message: '获取文件树成功', 
-                data: {
-                    index: indexedTree  // 可索引的树结构
-                }
+                data: indexedTree  // 可索引的树结构
+
             });
         } catch (err) {
             res.status(500).json({ 
