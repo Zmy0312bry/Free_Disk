@@ -1,6 +1,7 @@
 var express = require('express');
 const bodyParser = require('body-parser');
 const path = require('path');
+const cors = require('cors');
 
 /**
  * 初始化框架,并将初始化后的函数给予 '当前页面'全局变量 app
@@ -9,6 +10,12 @@ const path = require('path');
 var app = express();
 
 /* 配置框架环境 S */
+// 使用CORS中间件，允许所有来源的跨域请求
+app.use(cors({
+    origin: '*', // 允许所有来源
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // 允许的HTTP方法
+    allowedHeaders: ['Content-Type', 'Authorization'] // 允许的请求头
+}));
 
 // 设置 public 为静态文件的存放文件夹
 app.use('/public', express.static('public'));

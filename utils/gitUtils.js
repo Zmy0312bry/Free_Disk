@@ -16,9 +16,18 @@ const getRepoPath = (workspace) => {
     const basePath = path.join(process.cwd(), gitConfig.repoPath);
     // 设置全局变量 target_folder，这里的workspace是仓库内的路径，而不是独立仓库目录
     target_folder = workspace || '';
-    // 无论有无workspace，都返回相同的仓库基础路径
+    
+    // 如果提供了workspace，则将其添加到路径中
+    if (workspace) {
+        return path.join(basePath, workspace);
+    }
+    
+    // 否则返回基础路径
     return basePath;
 };
+
+// 将getRepoPath函数导出，使其可以在其他模块中访问
+exports.getRepoPath = getRepoPath;
 
 /**
  * 获取特定工作区的Git实例
@@ -165,75 +174,108 @@ exports.pushChanges = async function(remoteName, branch, workspace) {
 };
 
 /**
+ * 在保护工作目录的情况下执行函数
+ * 确保执行完成后恢复到原始工作目录
+ * @param {Function} fn 要执行的函数
+ * @returns {Promise<any>} 函数的返回值
+ */
+exports.withProtectedWorkingDir = async function(fn) {
+    const originalWorkingDir = process.cwd();
+    try {
+        return await fn();
+    } finally {
+        // 无论成功还是失败，都恢复原始工作目录
+        if (process.cwd() !== originalWorkingDir) {
+            process.chdir(originalWorkingDir);
+        }
+    }
+};
+
+/**
  * 初始化稀疏检出配置
  * @param {string} workspace 工作区路径，表示仓库内的子文件夹路径
  */
 exports.initSparseCheckout = async function(workspace) {
-    const git = getGit(workspace);
-    const repoPath = getRepoPath(workspace);
-    
-    // 确保Git仓库已初始化
-    await exports.checkGitInitialized(workspace);
-    
-    // 1. 检查 config 文件下 [core] 下是否有 sparseCheckout = true
-    let isSparseCheckoutEnabled = false;
-    try {
-        const configValue = await git.raw(['config', '--get', 'core.sparseCheckout']);
-        isSparseCheckoutEnabled = configValue.trim() === 'true';
-    } catch (error) {
-        // 如果命令失败，表示配置不存在
-        isSparseCheckoutEnabled = false;
-    }
-    
-    if (!isSparseCheckoutEnabled) {
-        await git.raw(['config', 'core.sparseCheckout', 'true']);
-        console.log(`已启用稀疏检出 (针对路径: ${workspace || '根目录'})`);
-    }
-    
-    // 确保 .git/info 目录存在
-    const infoDir = path.join(repoPath, '.git', 'info');
-    if (!fs.existsSync(infoDir)) {
-        fs.mkdirSync(infoDir, { recursive: true });
-    }
-    
-    // 2. 检查 .git/info 下有无 sparse-checkout 文件
-    const sparseFile = path.join(infoDir, 'sparse-checkout');
-    let sparseFileExists = fs.existsSync(sparseFile);
-    
-    if (!sparseFileExists) {
-        // 执行 git sparse-checkout set --no-cone 命令
-        await git.raw(['sparse-checkout', 'set', '--no-cone']);
-        console.log(`已初始化稀疏检出文件 (针对路径: ${workspace || '根目录'})`);
-        sparseFileExists = true;
-    }
-    
-    // 3. 检查 sparse-checkout 文件内容
-    let existingContent = '';
-    let contentChanged = false;
-    
-    if (sparseFileExists) {
-        existingContent = fs.readFileSync(sparseFile, 'utf8').trim();
-    }
-    
-    // 构建期望的 sparse-checkout 内容 - 严格按照需要检出的路径和排除其他内容的格式
-    // 如果workspace为空，则检出所有内容
-    const expectedLines = workspace ? 
-        [`${workspace}/*`, '!/*'] : 
-        ['/*'];  // 如果没有指定workspace，则检出所有内容
-    const expectedContent = expectedLines.join('\n');
-    
-    // 比较现有内容和期望内容
-    if (existingContent !== expectedContent) {
-        fs.writeFileSync(sparseFile, expectedContent, 'utf8');
-        contentChanged = true;
-        console.log(`已更新稀疏检出配置 (针对路径: ${workspace || '根目录'})`);
-    }
-    
-    // 4. 如果 sparse-checkout 发生变动，执行 reapply 命令
-    if (contentChanged) {
-        await git.raw(['sparse-checkout', 'reapply']);
-        console.log(`已重新应用稀疏检出配置 (针对路径: ${workspace || '根目录'})`);
-    }
+    return exports.withProtectedWorkingDir(async () => {
+        // 获取仓库根目录，而不是子文件夹目录
+        const baseRepoPath = path.join(process.cwd(), gitConfig.repoPath);
+        // 在仓库根目录执行git操作
+        const git = simpleGit({ baseDir: baseRepoPath });
+        const repoPath = baseRepoPath;
+        
+        // 确保Git仓库已初始化（在根目录）
+        if (!fs.existsSync(repoPath)) {
+            fs.mkdirSync(repoPath, { recursive: true });
+            console.log(`创建仓库目录: ${repoPath}`);
+        }
+        
+        // 检查是否已初始化
+        const isInitialized = fs.existsSync(path.join(repoPath, '.git'));
+        if (!isInitialized) {
+            await git.init();
+            console.log(`Git 仓库已在根目录初始化`);
+        }
+        
+        // 1. 检查 config 文件下 [core] 下是否有 sparseCheckout = true
+        let isSparseCheckoutEnabled = false;
+        try {
+            const configValue = await git.raw(['config', '--get', 'core.sparseCheckout']);
+            isSparseCheckoutEnabled = configValue.trim() === 'true';
+        } catch (error) {
+            // 如果命令失败，表示配置不存在
+            isSparseCheckoutEnabled = false;
+        }
+        
+        if (!isSparseCheckoutEnabled) {
+            await git.raw(['config', 'core.sparseCheckout', 'true']);
+            console.log(`已启用稀疏检出 (针对路径: ${workspace || '根目录'})`);
+        }
+        
+        // 确保 .git/info 目录存在
+        const infoDir = path.join(repoPath, '.git', 'info');
+        if (!fs.existsSync(infoDir)) {
+            fs.mkdirSync(infoDir, { recursive: true });
+        }
+        
+        // 2. 检查 .git/info 下有无 sparse-checkout 文件
+        const sparseFile = path.join(infoDir, 'sparse-checkout');
+        let sparseFileExists = fs.existsSync(sparseFile);
+        
+        if (!sparseFileExists) {
+            // 执行 git sparse-checkout set --no-cone 命令
+            await git.raw(['sparse-checkout', 'set', '--no-cone']);
+            console.log(`已初始化稀疏检出文件 (针对路径: ${workspace || '根目录'})`);
+            sparseFileExists = true;
+        }
+        
+        // 3. 检查 sparse-checkout 文件内容
+        let existingContent = '';
+        let contentChanged = false;
+        
+        if (sparseFileExists) {
+            existingContent = fs.readFileSync(sparseFile, 'utf8').trim();
+        }
+        
+        // 构建期望的 sparse-checkout 内容 - 严格按照需要检出的路径和排除其他内容的格式
+        // 如果workspace为空，则检出所有内容
+        const expectedLines = workspace ? 
+            [`${workspace}/*`, '!/*'] : 
+            ['/*'];  // 如果没有指定workspace，则检出所有内容
+        const expectedContent = expectedLines.join('\n');
+        
+        // 比较现有内容和期望内容
+        if (existingContent !== expectedContent) {
+            fs.writeFileSync(sparseFile, expectedContent, 'utf8');
+            contentChanged = true;
+            console.log(`已更新稀疏检出配置 (针对路径: ${workspace || '根目录'})`);
+        }
+        
+        // 4. 如果 sparse-checkout 发生变动，执行 reapply 命令
+        if (contentChanged) {
+            await git.raw(['sparse-checkout', 'reapply']);
+            console.log(`已重新应用稀疏检出配置 (针对路径: ${workspace || '根目录'})`);
+        }
+    });
 };
 
 /**
@@ -243,13 +285,15 @@ exports.initSparseCheckout = async function(workspace) {
  * @param {string} workspace 工作区名称
  */
 exports.pull = async function(remoteName, branch, workspace) {
-    const git = getGit(workspace);
-    try {
-        await git.pull(remoteName, branch);
-        console.log(`已从 ${remoteName}/${branch} 拉取更新 (工作区: ${workspace})`);
-    } catch (error) {
+    return exports.withProtectedWorkingDir(async () => {
+        const git = getGit(workspace);
+        try {
+            await git.pull(remoteName, branch);
+            console.log(`已从 ${remoteName}/${branch} 拉取更新 (工作区: ${workspace})`);
+        } catch (error) {
             throw error;
-    }
+        }
+    });
 };
 
 /**

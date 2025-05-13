@@ -43,16 +43,36 @@ exports.getFileName = function(filePath) {
 const fsPromises = require('fs').promises;
 
 /**
- * 复制文件
+ * 在保护工作目录的情况下执行函数
+ * 确保执行完成后恢复到原始工作目录
+ * @param {Function} fn 要执行的函数
+ * @returns {Promise<any>} 函数的返回值
+ */
+exports.withProtectedWorkingDir = async function(fn) {
+    const originalWorkingDir = process.cwd();
+    try {
+        return await fn();
+    } finally {
+        // 无论成功还是失败，都恢复原始工作目录
+        if (process.cwd() !== originalWorkingDir) {
+            process.chdir(originalWorkingDir);
+        }
+    }
+};
+
+/**
+ * 复制文件 - 带工作目录保护
  * @param {string} source - 源文件路径
  * @param {string} target - 目标文件路径
  */
 exports.copyFile = async function(source, target) {
-    try {
-        await fsPromises.copyFile(source, target);
-        console.log(`已复制文件: ${source} -> ${target}`);
-    } catch (error) {
-        console.error(`复制文件失败: ${error.message}`);
-        throw error;
-    }
+    return exports.withProtectedWorkingDir(async () => {
+        try {
+            await fsPromises.copyFile(source, target);
+            console.log(`已复制文件: ${source} -> ${target}`);
+        } catch (error) {
+            console.error(`复制文件失败: ${error.message}`);
+            throw error;
+        }
+    });
 };

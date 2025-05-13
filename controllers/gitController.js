@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs');
 const fileUtils = require('../utils/fileUtils');
 const gitUtils = require('../utils/gitUtils');
 const gitConfig = require('../config/gitConfig');
@@ -179,7 +180,6 @@ exports.sparsePull = async function(req, res) {
             success: true,
             message: '稀疏检出更新完成',
             workspace,
-            patterns
         });
     } catch (error) {
         console.error('稀疏更新错误:', error);
@@ -197,13 +197,21 @@ exports.sparsePull = async function(req, res) {
  * @param {Object} res - 响应对象
  */
 exports.uploadAndPush = async (req, res) => {
+    // 保存当前工作目录，以便后续恢复
+    const originalWorkingDir = process.cwd();
+    
     try {
-        const { sourcePath, targetRelativePath } = req.body;
+        // 支持两种模式：本地文件路径复制和前端上传的二进制文件
+        const isFileUpload = req.file || req.files; // 检查是否有上传文件
+        let fileName, targetPath;
         
-        if (!sourcePath || !targetRelativePath) {
-            return res.status(400).json({ 
-                success: false, 
-                message: '缺少必要参数：源文件路径或目标相对路径'
+        // 检查必要参数
+        const { targetRelativePath } = req.body;
+        
+        if (!targetRelativePath) {
+            return res.status(400).json({
+                success: false,
+                message: '缺少必要参数：目标相对路径'
             });
         }
         
@@ -234,13 +242,36 @@ exports.uploadAndPush = async (req, res) => {
             await execPromise(`git pull ${gitConfig.remoteName} ${gitConfig.defaultBranch}`);
         }
         
-        // 步骤2：上传文件（复制文件，不使用软链接）
-        console.log('复制文件...');
-        const fileName = fileUtils.getFileName(sourcePath);
-        const targetPath = path.join(targetDir, fileName);
+        // 步骤2：处理文件
+        console.log('处理文件...');
         
-        // 使用复制替代软链接
-        await fileUtils.copyFile(sourcePath, targetPath);
+        if (isFileUpload) {
+            // 处理前端上传的二进制文件
+            const uploadedFile = req.file || req.files[0];
+            fileName = uploadedFile.originalname || 'uploaded_file';
+            targetPath = path.join(targetDir, fileName);
+            
+            // 将上传的文件内容写入目标路径
+            const fileBuffer = uploadedFile.buffer;
+            fs.writeFileSync(targetPath, fileBuffer);
+            console.log(`已保存上传的文件: ${fileName} -> ${targetPath}`);
+        } else {
+            // 原来的方式：本地文件路径复制 (保留为注释)
+            const { sourcePath } = req.body;
+            
+            if (!sourcePath) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: '使用本地复制模式时，需要提供源文件路径'
+                });
+            }
+            
+            fileName = fileUtils.getFileName(sourcePath);
+            targetPath = path.join(targetDir, fileName);
+            
+            // 使用复制替代软链接
+            await fileUtils.copyFile(sourcePath, targetPath);
+        }
         
         // 添加新文件到git
         await execPromise(`git add "${targetPath}"`);
@@ -249,6 +280,9 @@ exports.uploadAndPush = async (req, res) => {
         // 步骤3：推送到远程仓库
         console.log('推送到远程仓库...');
         await execPromise(`git push ${gitConfig.remoteName} ${gitConfig.defaultBranch}`);
+        
+        // 返回结果前恢复原始工作目录
+        process.chdir(originalWorkingDir);
         
         res.status(200).json({
             success: true,
@@ -259,11 +293,50 @@ exports.uploadAndPush = async (req, res) => {
             }
         });
     } catch (error) {
+        // 确保即使出错也恢复原始工作目录
+        process.chdir(originalWorkingDir);
+        
         console.error('上传文件并推送时出错:', error);
         res.status(500).json({
             success: false,
             message: '上传文件并推送失败',
             error: error.message
+        });
+    }
+};
+
+/**
+ * 更新稀疏检出配置
+ * 初始化或更新指定工作区的稀疏检出配置
+ * @param {Object} req - HTTP请求对象
+ * @param {Object} res - HTTP响应对象
+ */
+exports.sparseUpdate = async function(req, res) {
+    try {
+        const { workspace } = req.body;
+
+        // 允许workspace可以为空字符串，表示仓库根目录
+        if (workspace === undefined) {
+            return res.status(400).json({
+                success: false,
+                message: '缺少必需的参数 workspace'
+            });
+        }
+
+        // 初始化稀疏检出配置
+        await gitUtils.initSparseCheckout(workspace);
+        
+        res.json({
+            success: true,
+            message: '稀疏检出配置已更新',
+            workspace: workspace || '根目录',
+        });
+    } catch (error) {
+        console.error('稀疏检出配置更新错误:', error);
+        res.status(500).json({
+            success: false,
+            message: `稀疏检出配置更新失败: ${error.message}`,
+            error: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
     }
 };

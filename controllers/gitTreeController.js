@@ -1,5 +1,7 @@
 const { exec } = require('child_process');
 const { buildFileTree } = require('../utils/gitTreeUtils');
+const path = require('path');
+const gitConfig = require('../config/gitConfig');
 
 /**
  * 获取Git仓库文件树的控制器函数
@@ -8,8 +10,11 @@ const { buildFileTree } = require('../utils/gitTreeUtils');
  * @param {Object} res - Express响应对象
  */
 exports.getGitTree = (req, res) => {
-    const repoPath = req.query.path || '.';
-    const branch = req.query.branch || 'master';
+    // 使用配置中的仓库路径，workspace参数与其他接口保持一致
+    const workspace = req.query.workspace || '';
+    // 使用gitUtils的getRepoPath函数获取仓库路径
+    const repoPath = require('../utils/gitUtils').getRepoPath(workspace);
+    const branch = req.query.branch || gitConfig.defaultBranch;
     
     exec(`cd ${repoPath} && git ls-tree -r ${branch}`, (error, stdout, stderr) => {
         if (error) {
