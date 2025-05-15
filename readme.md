@@ -20,7 +20,7 @@ npm install
 npm run dev  # 本地测试启动
 ```
 
-服务将在 http://localhost:3000 启动
+服务将在 http://0.0.0.0:3000 启动
 
 
 ## 参考文献
