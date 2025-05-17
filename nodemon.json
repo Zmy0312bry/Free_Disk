@@ -4,7 +4,8 @@
   ],
   "ignore": [
     "test/**/*",
-    "node_modules"
+    "node_modules",
+    "config/gitConfig.json"
   ],
   "ext": "js,json"
 }

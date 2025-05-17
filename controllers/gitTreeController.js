@@ -14,9 +14,10 @@ exports.getGitTree = (req, res) => {
     const workspace = req.query.workspace || '';
     // 使用gitUtils的getRepoPath函数获取仓库路径
     const repoPath = require('../utils/gitUtils').getRepoPath(workspace);
+
     const branch = req.query.branch || gitConfig.defaultBranch;
     
-    exec(`cd ${repoPath} && git ls-tree -r ${branch}`, (error, stdout, stderr) => {
+    exec(`cd ${repoPath} && git ls-tree -r origin/${branch}`, (error, stdout, stderr) => {
         if (error) {
             return res.status(500).json({ 
                 success: false, 
@@ -38,7 +39,7 @@ exports.getGitTree = (req, res) => {
                 const [mode, type, hash, path] = line.split(/\s+/);
                 return { mode, type, hash, path };
             });
-
+            console.log('获取到的文件列表:', files);
             // 构建可索引的文件树结构
             const fileTree = buildFileTree(files);
             

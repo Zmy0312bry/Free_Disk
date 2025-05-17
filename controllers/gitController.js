@@ -2,11 +2,12 @@ const path = require('path');
 const fs = require('fs');
 const fileUtils = require('../utils/fileUtils');
 const gitUtils = require('../utils/gitUtils');
-const gitConfig = require('../config/gitConfig');
+const sparseCheckoutUtils = require('../utils/sparseCheckoutUtils');
+const { getConfig } = require('../utils/InitUtils');
 const { exec } = require('child_process');
 const util = require('util');
 const execPromise = util.promisify(exec);
-
+const simpleGit = require('simple-git');
 
 /**
  * 获取工作区的远程仓库路径信息
@@ -23,12 +24,13 @@ exports.getWorkspaceInfo = async function(req, res) {
             });
         }
 
-        const workspacePath = path.join(process.cwd(), gitConfig.repoPath.replace('/', '\\'), workspace);
+        const config = getConfig();
+        const workspacePath = path.join(process.cwd(), config.repoPath.replace('/', '\\'), workspace);
         const isInitialized = await gitUtils.isGitInitialized(workspace);
         
         let remoteUrl = '';
         if (isInitialized) {
-            remoteUrl = await gitUtils.getRemoteUrl(gitConfig.remoteName, workspace);
+            remoteUrl = await gitUtils.getRemoteUrl(config.remoteName, workspace);
         }
 
         res.json({
@@ -36,8 +38,8 @@ exports.getWorkspaceInfo = async function(req, res) {
             workspace,
             path: workspacePath,
             isGitInitialized: isInitialized,
-            remoteUrl: remoteUrl || gitConfig.remoteUrl,
-            defaultBranch: gitConfig.defaultBranch
+            remoteUrl: remoteUrl || config.remoteUrl,
+            defaultBranch: config.defaultBranch
         });
     } catch (error) {
         console.error('获取工作区信息错误:', error);
@@ -61,7 +63,8 @@ exports.initRepository = async function(req, res) {
         const { customPath, remoteUrl } = req.body;
         
         // 使用自定义路径或默认配置路径
-        const basePath = customPath || path.join(process.cwd(), gitConfig.repoPath.replace('/', '\\'));
+        const config = getConfig();
+        const basePath = customPath || path.join(process.cwd(), config.repoPath.replace('/', '\\'));
         
         // 确保目录存在
         fileUtils.ensureDirectoryExists(basePath);
@@ -70,16 +73,16 @@ exports.initRepository = async function(req, res) {
         await gitUtils.initRepository(basePath);
         
         // 设置远程仓库
-        const finalRemoteUrl = remoteUrl || gitConfig.remoteUrl;
-        await gitUtils.setupRemoteRepositoryWithPath(basePath, gitConfig.remoteName, finalRemoteUrl);
+        const finalRemoteUrl = remoteUrl || config.remoteUrl;
+        await gitUtils.setupRemoteRepositoryWithPath(basePath, config.remoteName, finalRemoteUrl);
         
         res.json({
             success: true,
             message: '仓库初始化完成',
             path: basePath,
             remoteUrl: finalRemoteUrl,
-            remoteName: gitConfig.remoteName,
-            defaultBranch: gitConfig.defaultBranch
+            remoteName: config.remoteName,
+            defaultBranch: config.defaultBranch
         });
     } catch (error) {
         console.error('仓库初始化错误:', error);
@@ -92,12 +95,11 @@ exports.initRepository = async function(req, res) {
 };
 
 /**
- * 稀疏更新接口
- * 执行稀疏检出初始化和更新操作
+ * 初始化稀疏检出配置（默认不检出任何目录）
  * @param {Object} req - HTTP请求对象
  * @param {Object} res - HTTP响应对象
  */
-exports.sparsePull = async function(req, res) {
+exports.initSparseCheckoutEmpty = async function(req, res) {
     try {
         const { workspace } = req.body;
 
@@ -109,9 +111,79 @@ exports.sparsePull = async function(req, res) {
             });
         }
 
+        // 初始化稀疏检出配置（默认不检出任何目录）
+        await sparseCheckoutUtils.initSparseCheckoutEmpty(workspace);
+        
+        res.json({
+            success: true,
+            message: '稀疏检出配置已初始化（默认不检出任何目录）',
+            workspace: workspace || '根目录',
+        });
+    } catch (error) {
+        console.error('稀疏检出配置初始化错误:', error);
+        res.status(500).json({
+            success: false,
+            message: `稀疏检出配置初始化失败: ${error.message}`,
+            error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
+    }
+};
 
-        // 执行 pull 同步
-        await gitUtils.pull(gitConfig.remoteName, gitConfig.defaultBranch, workspace);
+/**
+ * 更新稀疏检出配置
+ * 初始化或更新指定工作区的稀疏检出配置
+ * @param {Object} req - HTTP请求对象
+ * @param {Object} res - HTTP响应对象
+ */
+exports.sparseUpdate = async function(req, res) {
+    try {
+        const { workspace } = req.body;
+
+        // 允许workspace可以为空字符串，表示仓库根目录
+        if (workspace === undefined) {
+            return res.status(400).json({
+                success: false,
+                message: '缺少必需的参数 workspace'
+            });
+        }
+
+        // 初始化稀疏检出配置
+        const contentChanged = await sparseCheckoutUtils.sparseUpdate(workspace);
+        
+        res.json({
+            success: true,
+            message: '稀疏检出配置已更新',
+            workspace: workspace || '根目录',
+            contentChanged
+        });
+    } catch (error) {
+        console.error('稀疏检出配置更新错误:', error);
+        res.status(500).json({
+            success: false,
+            message: `稀疏检出配置更新失败: ${error.message}`,
+            error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
+    }
+};
+
+/**
+ * 稀疏检出同步更新接口
+ * 执行稀疏检出更新和同步操作
+ * @param {Object} req - HTTP请求对象
+ * @param {Object} res - HTTP响应对象
+ */
+exports.sparsePull = async function(req, res) {
+    try {
+        const { workspace } = req.body;
+
+        // 1. 重新应用稀疏检出配置
+        const config = getConfig();
+        const git = simpleGit({ baseDir: path.join(process.cwd(), config.repoPath) });
+        await git.raw(['sparse-checkout', 'reapply']);
+        console.log('已重新应用稀疏检出配置');
+
+        // 2. 执行 pull 同步
+        await gitUtils.pull(config.remoteName, config.defaultBranch, workspace);
         
         res.json({
             success: true,
@@ -153,7 +225,8 @@ exports.uploadAndPush = async (req, res) => {
         }
         
         // 使用gitConfig中的配置获取仓库路径
-        const repoPath = path.join(process.cwd(), gitConfig.repoPath.replace('/', '\\'));
+        const config = getConfig();
+        const repoPath = path.join(process.cwd(), config.repoPath.replace('/', '\\'));
         const targetDir = path.join(repoPath, targetRelativePath);
         
         // 确保目标目录在仓库路径内
@@ -172,11 +245,11 @@ exports.uploadAndPush = async (req, res) => {
         
         // 步骤1：检查是否有冲突
         console.log('检查是否有冲突...');
-        const { stdout: diffOutput } = await execPromise(`git diff ${gitConfig.defaultBranch} ${gitConfig.remoteName}/${gitConfig.defaultBranch}`);
+        const { stdout: diffOutput } = await execPromise(`git diff ${config.defaultBranch} ${config.remoteName}/${config.defaultBranch}`);
         
         if (diffOutput.trim() !== '') {
             console.log('检测到潜在冲突，执行git pull...');
-            await execPromise(`git pull ${gitConfig.remoteName} ${gitConfig.defaultBranch}`);
+            await execPromise(`git pull ${config.remoteName} ${config.defaultBranch}`);
         }
         
         // 步骤2：处理文件
@@ -193,7 +266,7 @@ exports.uploadAndPush = async (req, res) => {
             fs.writeFileSync(targetPath, fileBuffer);
             console.log(`已保存上传的文件: ${fileName} -> ${targetPath}`);
         } else {
-            // 原来的方式：本地文件路径复制 (保留为注释)
+            // 本地文件路径复制
             const { sourcePath } = req.body;
             
             if (!sourcePath) {
@@ -212,11 +285,11 @@ exports.uploadAndPush = async (req, res) => {
         
         // 添加新文件到git
         await execPromise(`git add "${targetPath}"`);
-        await execPromise(`git commit -m "${gitConfig.defaultCommitMessage}: ${fileName}"`);
+        await execPromise(`git commit -m "${config.defaultCommitMessage}: ${fileName}"`);
         
         // 步骤3：推送到远程仓库
         console.log('推送到远程仓库...');
-        await execPromise(`git push ${gitConfig.remoteName} ${gitConfig.defaultBranch}`);
+        await execPromise(`git push ${config.remoteName} ${config.defaultBranch}`);
         
         // 返回结果前恢复原始工作目录
         process.chdir(originalWorkingDir);
@@ -243,48 +316,13 @@ exports.uploadAndPush = async (req, res) => {
 };
 
 /**
- * 更新稀疏检出配置
- * 初始化或更新指定工作区的稀疏检出配置
- * @param {Object} req - HTTP请求对象
- * @param {Object} res - HTTP响应对象
- */
-exports.sparseUpdate = async function(req, res) {
-    try {
-        const { workspace } = req.body;
-
-        // 允许workspace可以为空字符串，表示仓库根目录
-        if (workspace === undefined) {
-            return res.status(400).json({
-                success: false,
-                message: '缺少必需的参数 workspace'
-            });
-        }
-
-        // 初始化稀疏检出配置
-        await gitUtils.initSparseCheckout(workspace);
-        
-        res.json({
-            success: true,
-            message: '稀疏检出配置已更新',
-            workspace: workspace || '根目录',
-        });
-    } catch (error) {
-        console.error('稀疏检出配置更新错误:', error);
-        res.status(500).json({
-            success: false,
-            message: `稀疏检出配置更新失败: ${error.message}`,
-            error: process.env.NODE_ENV === 'development' ? error.stack : undefined
-        });
-    }
-};
-
-/**
  * 初始化和更新LFS配置
  * @param {Object} req - HTTP请求对象
  * @param {Object} res - HTTP响应对象
  */
 exports.initAndUpdateLFS = async function(req, res) {
     try {
+        const config = getConfig();
         // 如果请求中带有add_lfs字段，则取出文件后缀名进行处理
         let extensions = [];
         if (req.body.add_lfs) {
@@ -306,7 +344,7 @@ exports.initAndUpdateLFS = async function(req, res) {
             message: extensions.length > 0 
                 ? `LFS配置已更新，已添加${extensions.join(', ')}到LFS追踪`
                 : 'LFS已初始化',
-            path: gitConfig.repoPath
+            path: config.repoPath
         });
     } catch (error) {
         console.error('LFS配置更新错误:', error);

@@ -65,7 +65,7 @@ exports.updateRepoPath = function(req, res) {
  * @param {Object} req - HTTP请求对象
  * @param {Object} res - HTTP响应对象
  */
-exports.updateRemoteUrl = function(req, res) {
+exports.updateRemoteUrl = async function(req, res) {
     try {
         const { remoteUrl } = req.body;
         
@@ -76,11 +76,11 @@ exports.updateRemoteUrl = function(req, res) {
             });
         }
 
-        initUtils.updateRemoteUrl(remoteUrl);
+        await initUtils.updateRemoteUrl(remoteUrl);
         
         res.json({
             success: true,
-            message: '远程仓库URL更新成功',
+            message: '远程仓库URL和git remote设置更新成功',
             remoteUrl
         });
     } catch (error) {

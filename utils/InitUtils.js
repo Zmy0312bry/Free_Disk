@@ -1,18 +1,51 @@
 const simpleGit = require('simple-git');
 const path = require('path');
 const fs = require('fs');
-const gitConfig = require('../config/gitConfig');
+
+// 获取JSON配置文件路径
+const CONFIG_PATH = path.join(process.cwd(), 'config', 'gitConfig.json');
+let cachedConfig = null;
 
 /**
- * 获取Git配置信息
- * @returns {Object} 配置信息对象
+ * 读取JSON配置文件
+ * @returns {Object} 完整的配置对象
+ */
+function readConfigFile() {
+    if (!cachedConfig) {
+        cachedConfig = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+    }
+    return cachedConfig;
+}
+
+/**
+ * 写入配置并更新缓存
+ * @param {Object} config 要写入的配置对象
+ */
+function writeConfigFile(config) {
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 4), 'utf8');
+    cachedConfig = config; // 更新缓存
+}
+
+/**
+ * 获取所有Git配置
+ * 这是获取配置的主要函数，其他模块应该使用这个函数
+ * @returns {Object} 完整的配置对象
+ */
+exports.getConfig = function() {
+    return readConfigFile();
+};
+
+/**
+ * 获取部分Git配置信息（保持向后兼容）
+ * @returns {Object} 配置信息对象的子集
  */
 exports.getGitConfig = function() {
+    const config = readConfigFile();
     return {
-        remoteUrl: gitConfig.remoteUrl,
-        repoPath: gitConfig.repoPath,
-        defaultBranch: gitConfig.defaultBranch,
-        remoteName: gitConfig.remoteName
+        remoteUrl: config.remoteUrl,
+        repoPath: config.repoPath,
+        defaultBranch: config.defaultBranch,
+        remoteName: config.remoteName
     };
 };
 
@@ -21,33 +54,42 @@ exports.getGitConfig = function() {
  * @param {string} newRepoPath 新的仓库路径
  */
 exports.updateRepoPath = function(newRepoPath) {
-    const configPath = path.join(process.cwd(), 'config\\gitConfig.js');
-    let content = fs.readFileSync(configPath, 'utf8');
-    
-    // 使用正则表达式更新repoPath配置
-    content = content.replace(
-        /repoPath:\s*path\.join\([^)]+\)/,
-        `repoPath: path.join('${newRepoPath}')`
-    );
-    
-    fs.writeFileSync(configPath, content, 'utf8');
+    const config = readConfigFile();
+    config.repoPath = newRepoPath;
+    writeConfigFile(config);
 };
 
 /**
  * 更新远程仓库URL配置
  * @param {string} newRemoteUrl 新的远程仓库URL
+ * @returns {Promise<void>}
  */
-exports.updateRemoteUrl = function(newRemoteUrl) {
-    const configPath = path.join(process.cwd(), 'config\\gitConfig.js');
-    let content = fs.readFileSync(configPath, 'utf8');
-    
-    // 使用正则表达式更新remoteUrl配置
-    content = content.replace(
-        /remoteUrl:\s*'[^']+'/,
-        `remoteUrl: '${newRemoteUrl}'`
-    );
-    
-    fs.writeFileSync(configPath, content, 'utf8');
+exports.updateRemoteUrl = async function(newRemoteUrl) {
+    // 1. 更新配置
+    const config = readConfigFile();
+    config.remoteUrl = newRemoteUrl;
+    writeConfigFile(config);
+
+    // 2. 更新git remote设置
+    const git = simpleGit({ baseDir: path.join(process.cwd(), config.repoPath) });
+    try {
+        // 检查是否已有远程仓库配置
+        const remotes = await git.getRemotes();
+        const hasRemote = remotes.some(remote => remote.name === config.remoteName);
+        
+        if (hasRemote) {
+            // 如果已存在，先删除再添加
+            await git.removeRemote(config.remoteName);
+            console.log(`已删除原有远程仓库 ${config.remoteName}`);
+        }
+        
+        // 添加新的远程仓库配置
+        await git.addRemote(config.remoteName, newRemoteUrl);
+        console.log(`已添加新的远程仓库 ${config.remoteName}: ${newRemoteUrl}`);
+    } catch (error) {
+        console.error('更新git remote时出错:', error);
+        throw error;
+    }
 };
 
 /**
@@ -56,24 +98,14 @@ exports.updateRemoteUrl = function(newRemoteUrl) {
  * @param {string} email 邮箱
  */
 const updateConfigFileUser = function(name, email) {
-    const configPath = path.join(process.cwd(), 'config\\gitConfig.js');
-    let content = fs.readFileSync(configPath, 'utf8');
-    
+    const config = readConfigFile();
     if (name) {
-        content = content.replace(
-            /username:\s*'[^']*'/,
-            `username: '${name}'`
-        );
+        config.username = name;
     }
-    
     if (email) {
-        content = content.replace(
-            /email:\s*'[^']*'/,
-            `email: '${email}'`
-        );
+        config.email = email;
     }
-    
-    fs.writeFileSync(configPath, content, 'utf8');
+    writeConfigFile(config);
 };
 
 /**

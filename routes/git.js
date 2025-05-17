@@ -17,6 +17,9 @@ router.get('/workspace-info', gitController.getWorkspaceInfo);
 // 稀疏更新路由
 router.post('/sparse-pull', gitController.sparsePull);
 
+// 稀疏检出初始化路由（默认不检出任何目录）
+router.post('/sparse-init-empty', gitController.initSparseCheckoutEmpty);
+
 // 稀疏检出配置更新路由
 router.post('/sparse-update', gitController.sparseUpdate);
 

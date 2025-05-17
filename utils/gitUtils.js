@@ -1,7 +1,7 @@
 const simpleGit = require('simple-git');
 const path = require('path');
 const fs = require('fs');
-const gitConfig = require('../config/gitConfig');
+const { getConfig } = require('./InitUtils');
 
 // 添加全局变量来存储目标文件夹
 let target_folder = '';
@@ -12,8 +12,9 @@ let target_folder = '';
  * @returns {string} 仓库路径
  */
 const getRepoPath = (workspace) => {
-    // 使用gitConfig中的配置构建基础路径
-    const basePath = path.join(process.cwd(), gitConfig.repoPath);
+    // 使用配置构建基础路径
+    const config = getConfig();
+    const basePath = path.join(process.cwd(), config.repoPath);
     // 设置全局变量 target_folder，这里的workspace是仓库内的路径，而不是独立仓库目录
     target_folder = workspace || '';
     
@@ -192,93 +193,6 @@ exports.withProtectedWorkingDir = async function(fn) {
 };
 
 /**
- * 初始化稀疏检出配置
- * @param {string} workspace 工作区路径，表示仓库内的子文件夹路径
- */
-exports.initSparseCheckout = async function(workspace) {
-    return exports.withProtectedWorkingDir(async () => {
-        // 获取仓库根目录，而不是子文件夹目录
-        const baseRepoPath = path.join(process.cwd(), gitConfig.repoPath);
-        // 在仓库根目录执行git操作
-        const git = simpleGit({ baseDir: baseRepoPath });
-        const repoPath = baseRepoPath;
-        
-        // 确保Git仓库已初始化（在根目录）
-        if (!fs.existsSync(repoPath)) {
-            fs.mkdirSync(repoPath, { recursive: true });
-            console.log(`创建仓库目录: ${repoPath}`);
-        }
-        
-        // 检查是否已初始化
-        const isInitialized = fs.existsSync(path.join(repoPath, '.git'));
-        if (!isInitialized) {
-            await git.init();
-            console.log(`Git 仓库已在根目录初始化`);
-        }
-        
-        // 1. 检查 config 文件下 [core] 下是否有 sparseCheckout = true
-        let isSparseCheckoutEnabled = false;
-        try {
-            const configValue = await git.raw(['config', '--get', 'core.sparseCheckout']);
-            isSparseCheckoutEnabled = configValue.trim() === 'true';
-        } catch (error) {
-            // 如果命令失败，表示配置不存在
-            isSparseCheckoutEnabled = false;
-        }
-        
-        if (!isSparseCheckoutEnabled) {
-            await git.raw(['config', 'core.sparseCheckout', 'true']);
-            console.log(`已启用稀疏检出 (针对路径: ${workspace || '根目录'})`);
-        }
-        
-        // 确保 .git/info 目录存在
-        const infoDir = path.join(repoPath, '.git\\info');
-        if (!fs.existsSync(infoDir)) {
-            fs.mkdirSync(infoDir, { recursive: true });
-        }
-        
-        // 2. 检查 .git/info 下有无 sparse-checkout 文件
-        const sparseFile = path.join(infoDir, 'sparse-checkout\\');
-        let sparseFileExists = fs.existsSync(sparseFile);
-        
-        if (!sparseFileExists) {
-            // 执行 git sparse-checkout set --no-cone 命令
-            await git.raw(['sparse-checkout', 'set', '--no-cone']);
-            console.log(`已初始化稀疏检出文件 (针对路径: ${workspace || '根目录'})`);
-            sparseFileExists = true;
-        }
-        
-        // 3. 检查 sparse-checkout 文件内容
-        let existingContent = '';
-        let contentChanged = false;
-        
-        if (sparseFileExists) {
-            existingContent = fs.readFileSync(sparseFile, 'utf8').trim();
-        }
-        
-        // 构建期望的 sparse-checkout 内容 - 严格按照需要检出的路径和排除其他内容的格式
-        // 如果workspace为空，则检出所有内容
-        const expectedLines = workspace ? 
-            [`${workspace}/*`, '!/*'] : 
-            ['/*'];  // 如果没有指定workspace，则检出所有内容
-        const expectedContent = expectedLines.join('\n');
-        
-        // 比较现有内容和期望内容
-        if (existingContent !== expectedContent) {
-            fs.writeFileSync(sparseFile, expectedContent, 'utf8');
-            contentChanged = true;
-            console.log(`已更新稀疏检出配置 (针对路径: ${workspace || '根目录'})`);
-        }
-        
-        // 4. 如果 sparse-checkout 发生变动，执行 reapply 命令
-        if (contentChanged) {
-            await git.raw(['sparse-checkout', 'reapply']);
-            console.log(`已重新应用稀疏检出配置 (针对路径: ${workspace || '根目录'})`);
-        }
-    });
-};
-
-/**
  * 从远程仓库拉取更新
  * @param {string} remoteName 远程仓库名称
  * @param {string} branch 分支名称
@@ -352,7 +266,8 @@ exports.setupRemoteRepositoryWithPath = async function(repoPath, remoteName, rem
  * @returns {Promise<boolean>} 是否存在.gitattributes文件
  */
 exports.checkGitAttributesExists = async function() {
-    const repoPath = path.join(process.cwd(), gitConfig.repoPath.replace('/', '\\'));
+    const config = getConfig();
+    const repoPath = path.join(process.cwd(), config.repoPath.replace('/', '\\'));
     return fs.existsSync(path.join(repoPath, '.gitattributes'));
 };
 
@@ -362,7 +277,8 @@ exports.checkGitAttributesExists = async function() {
  */
 exports.initAndUpdateLFS = async function(extensions = []) {
     return exports.withProtectedWorkingDir(async () => {
-        const repoPath = path.join(process.cwd(), gitConfig.repoPath);
+        const config = getConfig();
+        const repoPath = path.join(process.cwd(), config.repoPath);
         const git = simpleGit({ baseDir: repoPath });
         
         // 在仓库目录中执行操作
@@ -388,7 +304,7 @@ exports.initAndUpdateLFS = async function(extensions = []) {
             await git.commit('更新 Git LFS 追踪配置');
             
             // 推送更改到远程仓库
-            await git.push(gitConfig.remoteName, gitConfig.defaultBranch);
+            await git.push(config.remoteName, config.defaultBranch);
             console.log('已推送 LFS 配置更新到远程仓库');
         }
     });
