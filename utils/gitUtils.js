@@ -346,3 +346,50 @@ exports.setupRemoteRepositoryWithPath = async function(repoPath, remoteName, rem
         console.log(`远程仓库地址已更新为: ${remoteUrl} (路径: ${repoPath})`);
     }
 };
+
+/**
+ * 检查.gitattributes文件是否存在
+ * @returns {Promise<boolean>} 是否存在.gitattributes文件
+ */
+exports.checkGitAttributesExists = async function() {
+    const repoPath = path.join(process.cwd(), gitConfig.repoPath);
+    return fs.existsSync(path.join(repoPath, '.gitattributes'));
+};
+
+/**
+ * 初始化LFS配置并根据提供的后缀名添加LFS追踪
+ * @param {string[]} extensions 需要通过LFS追踪的文件后缀名数组
+ */
+exports.initAndUpdateLFS = async function(extensions = []) {
+    return exports.withProtectedWorkingDir(async () => {
+        const repoPath = path.join(process.cwd(), gitConfig.repoPath);
+        const git = simpleGit({ baseDir: repoPath });
+        
+        // 在仓库目录中执行操作
+        process.chdir(repoPath);
+        
+        // 如果不存在.gitattributes，执行git lfs install
+        if (!await exports.checkGitAttributesExists()) {
+            await git.raw(['lfs', 'install']);
+            console.log('Git LFS 已安装');
+        }
+        
+        // 如果提供了后缀名，为每个后缀名添加LFS追踪
+        if (extensions && extensions.length > 0) {
+            for (const ext of extensions) {
+                if (ext.startsWith('.')) {
+                    await git.raw(['lfs', 'track', `*${ext}`]);
+                    console.log(`已添加 ${ext} 文件到 LFS 追踪`);
+                }
+            }
+            
+            // 添加并提交.gitattributes文件
+            await git.add('.gitattributes');
+            await git.commit('更新 Git LFS 追踪配置');
+            
+            // 推送更改到远程仓库
+            await git.push(gitConfig.remoteName, gitConfig.defaultBranch);
+            console.log('已推送 LFS 配置更新到远程仓库');
+        }
+    });
+};

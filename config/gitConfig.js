@@ -16,4 +16,7 @@ module.exports = {
     
     // 默认提交信息
     defaultCommitMessage: '已更新',
+
+    username: 'zhao-mingyuan0312',
+    email: '123456@example.com'
 };

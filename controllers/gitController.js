@@ -7,69 +7,6 @@ const { exec } = require('child_process');
 const util = require('util');
 const execPromise = util.promisify(exec);
 
-/**
- * Git推送控制器
- * 处理文件更新并推送到远程Git仓库
- * 
- * @param {Object} req - HTTP请求对象
- * @param {Object} res - HTTP响应对象
- */
-exports.gitPush = async function(req, res) {
-    try {
-        const { filePath, content, workspace } = req.body;
-        
-        // 验证必需的参数
-        if (!filePath || !content) {
-            return res.status(400).json({
-                success: false,
-                message: '缺少必需的参数 filePath 或 content'
-            });
-        }
-
-        // 获取仓库路径，如果提供了workspace则考虑工作区
-        const repoPath = workspace 
-            ? path.join(process.cwd(), gitConfig.repoPath, workspace)
-            : path.join(process.cwd(), gitConfig.repoPath);
-        
-        const fullPath = path.join(repoPath, filePath);
-        
-        // 验证文件路径是否在仓库目录下
-        if (!fileUtils.validateFilePath(fullPath, repoPath)) {
-            return res.status(400).json({ 
-                success: false, 
-                message: '文件只能在仓库目录下创建或修改' 
-            });
-        }
-        
-        // 确保目录存在
-        const dirPath = path.dirname(fullPath);
-        fileUtils.ensureDirectoryExists(dirPath);
-        
-        // 创建/更新文件
-        fileUtils.writeFileContent(fullPath, content);
-
-        // Git操作
-        await gitUtils.checkGitInitialized(workspace);
-        await gitUtils.setupRemoteRepository(gitConfig.remoteName, gitConfig.remoteUrl, workspace);
-        await gitUtils.commitChanges(fullPath, gitConfig.defaultCommitMessage, workspace);
-        await gitUtils.pushChanges(gitConfig.remoteName, gitConfig.defaultBranch, workspace);
-        
-        // 返回成功响应
-        res.json({ 
-            success: true, 
-            message: '文件更新并成功推送到Git仓库',
-            path: filePath,
-            workspace: workspace || 'default'
-        });
-    } catch (error) {
-        console.error('Git操作错误:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: `操作失败: ${error.message}`,
-            error: process.env.NODE_ENV === 'development' ? error.stack : undefined
-        });
-    }
-};
 
 /**
  * 获取工作区的远程仓库路径信息
@@ -336,6 +273,46 @@ exports.sparseUpdate = async function(req, res) {
         res.status(500).json({
             success: false,
             message: `稀疏检出配置更新失败: ${error.message}`,
+            error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
+    }
+};
+
+/**
+ * 初始化和更新LFS配置
+ * @param {Object} req - HTTP请求对象
+ * @param {Object} res - HTTP响应对象
+ */
+exports.initAndUpdateLFS = async function(req, res) {
+    try {
+        // 如果请求中带有add_lfs字段，则取出文件后缀名进行处理
+        let extensions = [];
+        if (req.body.add_lfs) {
+            const extension = req.body.add_lfs;
+            if (!extension.startsWith('.')) {
+                return res.status(400).json({
+                    success: false,
+                    message: '文件后缀名必须以.开头'
+                });
+            }
+            extensions.push(extension);
+        }
+
+        // 初始化LFS并更新配置
+        await gitUtils.initAndUpdateLFS(extensions);
+        
+        res.json({
+            success: true,
+            message: extensions.length > 0 
+                ? `LFS配置已更新，已添加${extensions.join(', ')}到LFS追踪`
+                : 'LFS已初始化',
+            path: gitConfig.repoPath
+        });
+    } catch (error) {
+        console.error('LFS配置更新错误:', error);
+        res.status(500).json({
+            success: false,
+            message: `LFS配置更新失败: ${error.message}`,
             error: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
     }

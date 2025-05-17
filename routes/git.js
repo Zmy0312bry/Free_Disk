@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const gitController = require('../controllers/gitController');
+const gitInitController = require('../controllers/gitInitController');
 const multer = require('multer');
 
 // 配置 multer 存储
@@ -10,8 +11,6 @@ const upload = multer({
     limits: { fileSize: 50 * 1024 * 1024 } // 限制文件大小为50MB
 });
 
-// Git推送路由
-router.post('/push', gitController.gitPush);
 
 router.get('/workspace-info', gitController.getWorkspaceInfo);
 
@@ -26,5 +25,14 @@ router.post('/init-repo', gitController.initRepository);
 
 // 上传文件并推送到Git仓库
 router.post('/upload-and-push', upload.single('file'), gitController.uploadAndPush);
+
+// Git LFS初始化和更新路由
+router.post('/lfs-update', gitController.initAndUpdateLFS);
+
+// Git初始化配置相关路由
+router.get('/config', gitInitController.getConfig);
+router.post('/config/repo-path', gitInitController.updateRepoPath);
+router.post('/config/remote-url', gitInitController.updateRemoteUrl);
+router.post('/config/user', gitInitController.updateUserConfig);
 
 module.exports = router;
