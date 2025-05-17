@@ -31,12 +31,16 @@ const indexRouter = require('./routes/index');
 const gitRouter = require('./routes/git');
 const sshRouter = require('./routes/ssh');
 const gitTreeRouter = require('./routes/git-tree');
+const initRouter = require('./routes/init');
+const fileRouter = require('./routes/file');
 
 // 使用路由
 app.use('/', indexRouter);
 app.use('/git', gitRouter);
 app.use('/ssh', sshRouter);
 app.use('/git-tree', gitTreeRouter);
+app.use('/init', initRouter);
+app.use('/file', fileRouter);
 
 var server = app.listen(3001, "127.0.0.1", function() {
     var host = server.address().address

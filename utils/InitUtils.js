@@ -1,6 +1,7 @@
 const simpleGit = require('simple-git');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 
 // 获取JSON配置文件路径
 const CONFIG_PATH = path.join(process.cwd(), 'config', 'gitConfig.json');
@@ -150,4 +151,26 @@ exports.getCurrentGitUser = async function() {
             email: ''
         };
     }
+};
+
+/**
+ * 初始化安装路径配置
+ * 如果提供sourcePath则使用该路径，否则如果installPath为空，则默认使用Windows用户的桌面路径
+ * @param {string} [sourcePath] - 可选的指定安装路径
+ * @returns {string} 初始化后的安装路径
+ */
+exports.initInstallPath = function(sourcePath) {
+    const config = readConfigFile();
+    if (sourcePath) {
+        config.installPath = sourcePath;
+        writeConfigFile(config);
+        console.log('已将安装路径设置为:', sourcePath);
+    } else if (!config.installPath) {
+        // 获取Windows用户的桌面路径
+        const desktopPath = path.join(os.homedir(), 'Desktop');
+        config.installPath = desktopPath;
+        writeConfigFile(config);
+        console.log('已将安装路径初始化为桌面路径:', desktopPath);
+    }
+    return config.installPath;
 };

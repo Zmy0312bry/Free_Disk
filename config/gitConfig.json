@@ -1,4 +1,5 @@
 {
+    "installPath": "D:/桌面",
     "remoteUrl": "https://codeup.aliyun.com/67e26ad38571f8159f9a9e54/windows_test.git",
     "publicDirName": "public",
     "repoPath": "test",

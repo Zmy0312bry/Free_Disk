@@ -126,3 +126,28 @@ exports.updateUserConfig = async function(req, res) {
         });
     }
 };
+
+/**
+ * 初始化安装路径配置
+ * @param {Object} req - HTTP请求对象
+ * @param {Object} res - HTTP响应对象
+ */
+exports.initInstallPath = function(req, res) {
+    try {
+        const { sourcePath } = req.body;
+        const installPath = initUtils.initInstallPath(sourcePath);
+        
+        res.json({
+            success: true,
+            message: sourcePath ? '已设置指定的安装路径' : '安装路径初始化成功',
+            installPath
+        });
+    } catch (error) {
+        console.error('初始化安装路径错误:', error);
+        res.status(500).json({
+            success: false,
+            message: `初始化安装路径失败: ${error.message}`,
+            error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
+    }
+};

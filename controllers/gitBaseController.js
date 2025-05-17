@@ -2,7 +2,6 @@ const path = require('path');
 const fs = require('fs');
 const fileUtils = require('../utils/fileUtils');
 const gitUtils = require('../utils/gitUtils');
-const sparseCheckoutUtils = require('../utils/sparseCheckoutUtils');
 const { getConfig } = require('../utils/InitUtils');
 const { exec } = require('child_process');
 const util = require('util');
@@ -52,6 +51,87 @@ exports.getWorkspaceInfo = async function(req, res) {
 };
 
 /**
+ * 初始化拉取
+ * 如果远程仓库为空，则创建README并推送
+ * @param {Object} req - HTTP请求对象
+ * @param {Object} res - HTTP响应对象
+ */
+exports.initPull = async function(req, res) {
+    // 保存当前工作目录
+    const originalWorkingDir = process.cwd();
+    
+    try {
+        const config = getConfig();
+        const repoPath = path.join(process.cwd(), config.repoPath);
+        const git = simpleGit({ baseDir: repoPath });
+        
+        // 进入仓库目录
+        process.chdir(repoPath);
+
+        // 检查并初始化仓库
+        if (!fs.existsSync(path.join(repoPath, '.git'))) {
+            await git.init();
+            await git.addRemote(config.remoteName, config.remoteUrl);
+            console.log('Git仓库已初始化');
+        }
+
+        try {
+            // 尝试拉取
+            await git.pull(config.remoteName, config.defaultBranch);
+            console.log('成功从远程仓库拉取');
+            
+            // 恢复工作目录
+            process.chdir(originalWorkingDir);
+            
+            res.json({
+                success: true,
+                message: '成功从远程仓库拉取更新'
+            });
+        } catch (pullError) {
+            // 检查是否是因为远程分支不存在导致的错误
+            if (pullError.message.includes('not a valid object name') || 
+                pullError.message.includes('couldn\'t find remote ref')) {
+                try {
+                    // 创建README.md文件
+                    const readmePath = path.join(repoPath, 'README.md');
+                    fs.writeFileSync(readmePath, '初始化', 'utf8');
+                    
+                    // 提交并推送
+                    await git.add('README.md');
+                    await git.commit('初始化提交');
+                    await git.push(config.remoteName, config.defaultBranch, ['--set-upstream']);
+                    
+                    console.log('已创建初始提交并推送');
+                    
+                    res.json({
+                        success: true,
+                        message: '远程仓库为空，已创建初始提交并推送'
+                    });
+                } finally {
+                    // 恢复工作目录
+                    process.chdir(originalWorkingDir);
+                }
+            } else {
+                // 其他错误则抛出
+                throw pullError;
+            }
+        }
+    } catch (error) {
+        console.error('初始化拉取错误:', error);
+        res.status(500).json({
+            success: false,
+            message: `初始化拉取失败: ${error.message}`,
+            error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
+    } finally {
+        // 确保在任何情况下都恢复工作目录
+        if (process.cwd() !== originalWorkingDir) {
+            process.chdir(originalWorkingDir);
+        }
+    }
+};
+
+/**
  * 初始化Git仓库
  * 接收可选的自定义存储路径，初始化Git仓库并进行远程配置
  * 
@@ -95,116 +175,57 @@ exports.initRepository = async function(req, res) {
 };
 
 /**
- * 初始化稀疏检出配置（默认不检出任何目录）
- * @param {Object} req - HTTP请求对象
- * @param {Object} res - HTTP响应对象
- */
-exports.initSparseCheckoutEmpty = async function(req, res) {
-    try {
-        const { workspace } = req.body;
-
-        // 允许workspace可以为空字符串，表示仓库根目录
-        if (workspace === undefined) {
-            return res.status(400).json({
-                success: false,
-                message: '缺少必需的参数 workspace'
-            });
-        }
-
-        // 初始化稀疏检出配置（默认不检出任何目录）
-        await sparseCheckoutUtils.initSparseCheckoutEmpty(workspace);
-        
-        res.json({
-            success: true,
-            message: '稀疏检出配置已初始化（默认不检出任何目录）',
-            workspace: workspace || '根目录',
-        });
-    } catch (error) {
-        console.error('稀疏检出配置初始化错误:', error);
-        res.status(500).json({
-            success: false,
-            message: `稀疏检出配置初始化失败: ${error.message}`,
-            error: process.env.NODE_ENV === 'development' ? error.stack : undefined
-        });
-    }
-};
-
-/**
- * 更新稀疏检出配置
- * 初始化或更新指定工作区的稀疏检出配置
- * @param {Object} req - HTTP请求对象
- * @param {Object} res - HTTP响应对象
- */
-exports.sparseUpdate = async function(req, res) {
-    try {
-        const { workspace } = req.body;
-
-        // 允许workspace可以为空字符串，表示仓库根目录
-        if (workspace === undefined) {
-            return res.status(400).json({
-                success: false,
-                message: '缺少必需的参数 workspace'
-            });
-        }
-
-        // 初始化稀疏检出配置
-        const contentChanged = await sparseCheckoutUtils.sparseUpdate(workspace);
-        
-        res.json({
-            success: true,
-            message: '稀疏检出配置已更新',
-            workspace: workspace || '根目录',
-            contentChanged
-        });
-    } catch (error) {
-        console.error('稀疏检出配置更新错误:', error);
-        res.status(500).json({
-            success: false,
-            message: `稀疏检出配置更新失败: ${error.message}`,
-            error: process.env.NODE_ENV === 'development' ? error.stack : undefined
-        });
-    }
-};
-
-/**
- * 稀疏检出同步更新接口
- * 执行稀疏检出更新和同步操作
- * @param {Object} req - HTTP请求对象
- * @param {Object} res - HTTP响应对象
- */
-exports.sparsePull = async function(req, res) {
-    try {
-        const { workspace } = req.body;
-
-        // 1. 重新应用稀疏检出配置
-        const config = getConfig();
-        const git = simpleGit({ baseDir: path.join(process.cwd(), config.repoPath) });
-        await git.raw(['sparse-checkout', 'reapply']);
-        console.log('已重新应用稀疏检出配置');
-
-        // 2. 执行 pull 同步
-        await gitUtils.pull(config.remoteName, config.defaultBranch, workspace);
-        
-        res.json({
-            success: true,
-            message: '稀疏检出更新完成',
-            workspace,
-        });
-    } catch (error) {
-        console.error('稀疏更新错误:', error);
-        res.status(500).json({
-            success: false,
-            message: `稀疏更新失败: ${error.message}`,
-            error: process.env.NODE_ENV === 'development' ? error.stack : undefined
-        });
-    }
-};
-
-/**
  * 上传文件并推送到Git仓库
  * @param {Object} req - 请求对象
  * @param {Object} res - 响应对象
  */
+/**
+ * 执行安全的推送操作（先pull再push）
+ * 在仓库根目录执行git操作
+ * @param {Object} req - HTTP请求对象
+ * @param {Object} res - HTTP响应对象
+ */
+exports.safePush = async function(req, res) {
+    try {
+        const config = getConfig();
+        const repoPath = path.join(process.cwd(), config.repoPath);
+        const git = simpleGit({ baseDir: repoPath });
+        
+        // 确保在保护的工作目录中执行
+        await gitUtils.withProtectedWorkingDir(async () => {
+            process.chdir(repoPath);
+            
+            // 执行pull操作
+            const pullResult = await git.pull(config.remoteName, config.defaultBranch);
+            console.log('拉取操作结果:', JSON.stringify(pullResult, null, 2));
+
+            // 先执行add操作
+            await git.add('.');
+            console.log('已添加所有更改到暂存区');
+
+            // 执行commit操作
+            await git.commit(config.defaultCommitMessage);
+            console.log('已提交更改');
+            
+            // 执行push操作
+            const pushResult = await git.push(config.remoteName, config.defaultBranch);
+            console.log('推送操作结果:', JSON.stringify(pushResult, null, 2));
+        });
+        
+        res.json({
+            success: true,
+            message: '成功完成git add、commit、pull和push操作'
+        });
+    } catch (error) {
+        console.error('安全推送操作失败:', error);
+        res.status(500).json({
+            success: false,
+            message: `推送失败: ${error.message}`,
+            error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
+    }
+};
+
 exports.uploadAndPush = async (req, res) => {
     // 保存当前工作目录，以便后续恢复
     const originalWorkingDir = process.cwd();
@@ -311,47 +332,6 @@ exports.uploadAndPush = async (req, res) => {
             success: false,
             message: '上传文件并推送失败',
             error: error.message
-        });
-    }
-};
-
-/**
- * 初始化和更新LFS配置
- * @param {Object} req - HTTP请求对象
- * @param {Object} res - HTTP响应对象
- */
-exports.initAndUpdateLFS = async function(req, res) {
-    try {
-        const config = getConfig();
-        // 如果请求中带有add_lfs字段，则取出文件后缀名进行处理
-        let extensions = [];
-        if (req.body.add_lfs) {
-            const extension = req.body.add_lfs;
-            if (!extension.startsWith('.')) {
-                return res.status(400).json({
-                    success: false,
-                    message: '文件后缀名必须以.开头'
-                });
-            }
-            extensions.push(extension);
-        }
-
-        // 初始化LFS并更新配置
-        await gitUtils.initAndUpdateLFS(extensions);
-        
-        res.json({
-            success: true,
-            message: extensions.length > 0 
-                ? `LFS配置已更新，已添加${extensions.join(', ')}到LFS追踪`
-                : 'LFS已初始化',
-            path: config.repoPath
-        });
-    } catch (error) {
-        console.error('LFS配置更新错误:', error);
-        res.status(500).json({
-            success: false,
-            message: `LFS配置更新失败: ${error.message}`,
-            error: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
     }
 };

@@ -43,6 +43,53 @@ exports.getFileName = function(filePath) {
 const fsPromises = require('fs').promises;
 
 /**
+ * 在指定目录下创建新文件夹
+ * @param {string} baseDir 基础目录路径
+ * @param {string} folderName 要创建的文件夹名称
+ * @returns {Promise<{success: boolean, path: string, error: string|null}>} 创建结果
+ */
+exports.createFolder = async function(baseDir, folderName) {
+    try {
+        // 构建完整路径
+        const fullPath = path.join(baseDir, folderName);
+        
+        // 验证路径是否在基础目录下
+        if (!exports.validateFilePath(fullPath, baseDir)) {
+            return {
+                success: false,
+                path: null,
+                error: '无效的文件夹路径：路径必须在指定目录下'
+            };
+        }
+
+        // 检查文件夹是否已存在
+        if (fs.existsSync(fullPath)) {
+            return {
+                success: false,
+                path: null,
+                error: '文件夹已存在'
+            };
+        }
+
+        // 创建文件夹
+        await fsPromises.mkdir(fullPath, { recursive: true });
+
+        return {
+            success: true,
+            path: fullPath,
+            error: null
+        };
+    } catch (error) {
+        return {
+            success: false,
+            path: null,
+            error: `创建文件夹失败: ${error.message}`
+        };
+    }
+};
+
+
+/**
  * 在保护工作目录的情况下执行函数
  * 确保执行完成后恢复到原始工作目录
  * @param {Function} fn 要执行的函数
