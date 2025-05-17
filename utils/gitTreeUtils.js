@@ -7,7 +7,7 @@ exports.buildFileTree = (files) => {
     const root = { name: 'root', type: 'folder', children: [] };
 
     files.forEach(file => {
-        const pathParts = file.path.split('/');
+        const pathParts = file.path.split(/[\/\\]/);  // 支持两种分隔符
         let currentLevel = root;
 
         // 循环创建文件夹结构

@@ -7,11 +7,13 @@ const os = require('os');
 const checkAndConfigureSSHConfig = async () => {
     const sshPath = path.join(os.homedir(), '.ssh');
     const configPath = path.join(sshPath, 'config');
+    // 使用path.join生成平台无关的路径，并处理Windows反斜杠转义
+    const keyPath = path.join(sshPath, 'gitee_id_rsa').replace(/\\/g, '\\\\');
     const giteeConfig = `# gitee
 Host gitee.com
 HostName gitee.com
 PreferredAuthentications publickey
-IdentityFile ~/.ssh/gitee_id_rsa`;
+IdentityFile ${keyPath}`;
 
     // 确保.ssh目录存在
     if (!fs.existsSync(sshPath)) {
@@ -35,6 +37,39 @@ IdentityFile ~/.ssh/gitee_id_rsa`;
         console.log('gitee配置已添加到SSH config文件');
     } else {
         console.log('SSH config文件已包含gitee配置');
+    }
+};
+
+// 获取SSH公钥控制器
+exports.getPublicKey = async function(req, res) {
+    try {
+        const sshPath = path.join(os.homedir(), '.ssh');
+        const keyPath = path.join(sshPath, 'gitee_id_rsa.pub');
+
+        // 检查公钥文件是否存在
+        if (!fs.existsSync(keyPath)) {
+            return res.status(404).json({
+                success: false,
+                message: '公钥文件不存在，请先生成SSH密钥'
+            });
+        }
+
+        // 读取公钥文件
+        const publicKey = fs.readFileSync(keyPath, 'utf8');
+
+        // 设置响应头，使浏览器下载文件
+        res.setHeader('Content-Type', 'text/plain');
+        res.setHeader('Content-Disposition', 'attachment; filename=gitee_id_rsa.pub');
+
+        // 发送文件内容
+        res.send(publicKey);
+    } catch (error) {
+        console.error('获取公钥文件失败:', error);
+        res.status(500).json({
+            success: false,
+            message: '获取公钥文件失败',
+            error: error.message
+        });
     }
 };
 
@@ -67,7 +102,7 @@ exports.generateSshKey = async function(req, res) {
         }
 
         // 执行ssh-keygen命令
-        const command = `ssh-keygen -t rsa -C "${email}" -f "${keyPath}" `;
+        const command = `ssh-keygen -t rsa -C "${email}" -f "${keyPath}" -N ""`;
         console.log('即将执行命令:', command);
         
         exec(command, async (error, stdout, stderr) => {
@@ -102,7 +137,7 @@ exports.generateSshKey = async function(req, res) {
                 console.log('成功读取公钥文件');
                 
                 // 在public目录下创建临时文件夹
-                const tempDir = path.join(process.cwd(), 'public', 'temp');
+                const tempDir = path.join(process.cwd(), 'public\\temp');
                 console.log('创建临时目录:', tempDir);
                 
                 if (!fs.existsSync(tempDir)) {

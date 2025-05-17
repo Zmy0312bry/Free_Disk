@@ -46,7 +46,7 @@ const getGit = (workspace) => {
  */
 exports.isGitInitialized = async function(workspace) {
     const repoPath = getRepoPath(workspace);
-    return fs.existsSync(path.join(repoPath, '.git'));
+    return fs.existsSync(path.join(repoPath, '.git\\'));
 };
 
 /**
@@ -232,13 +232,13 @@ exports.initSparseCheckout = async function(workspace) {
         }
         
         // 确保 .git/info 目录存在
-        const infoDir = path.join(repoPath, '.git', 'info');
+        const infoDir = path.join(repoPath, '.git\\info');
         if (!fs.existsSync(infoDir)) {
             fs.mkdirSync(infoDir, { recursive: true });
         }
         
         // 2. 检查 .git/info 下有无 sparse-checkout 文件
-        const sparseFile = path.join(infoDir, 'sparse-checkout');
+        const sparseFile = path.join(infoDir, 'sparse-checkout\\');
         let sparseFileExists = fs.existsSync(sparseFile);
         
         if (!sparseFileExists) {
@@ -352,7 +352,7 @@ exports.setupRemoteRepositoryWithPath = async function(repoPath, remoteName, rem
  * @returns {Promise<boolean>} 是否存在.gitattributes文件
  */
 exports.checkGitAttributesExists = async function() {
-    const repoPath = path.join(process.cwd(), gitConfig.repoPath);
+    const repoPath = path.join(process.cwd(), gitConfig.repoPath.replace('/', '\\'));
     return fs.existsSync(path.join(repoPath, '.gitattributes'));
 };
 

@@ -23,7 +23,7 @@ exports.getWorkspaceInfo = async function(req, res) {
             });
         }
 
-        const workspacePath = path.join(process.cwd(), gitConfig.repoPath, workspace);
+        const workspacePath = path.join(process.cwd(), gitConfig.repoPath.replace('/', '\\'), workspace);
         const isInitialized = await gitUtils.isGitInitialized(workspace);
         
         let remoteUrl = '';
@@ -61,7 +61,7 @@ exports.initRepository = async function(req, res) {
         const { customPath, remoteUrl } = req.body;
         
         // 使用自定义路径或默认配置路径
-        const basePath = customPath || path.join(process.cwd(), gitConfig.repoPath);
+        const basePath = customPath || path.join(process.cwd(), gitConfig.repoPath.replace('/', '\\'));
         
         // 确保目录存在
         fileUtils.ensureDirectoryExists(basePath);
@@ -153,7 +153,7 @@ exports.uploadAndPush = async (req, res) => {
         }
         
         // 使用gitConfig中的配置获取仓库路径
-        const repoPath = path.join(process.cwd(), gitConfig.repoPath);
+        const repoPath = path.join(process.cwd(), gitConfig.repoPath.replace('/', '\\'));
         const targetDir = path.join(repoPath, targetRelativePath);
         
         // 确保目标目录在仓库路径内

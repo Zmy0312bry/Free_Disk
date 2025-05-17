@@ -21,7 +21,7 @@ exports.getGitConfig = function() {
  * @param {string} newRepoPath 新的仓库路径
  */
 exports.updateRepoPath = function(newRepoPath) {
-    const configPath = path.join(process.cwd(), 'config', 'gitConfig.js');
+    const configPath = path.join(process.cwd(), 'config\\gitConfig.js');
     let content = fs.readFileSync(configPath, 'utf8');
     
     // 使用正则表达式更新repoPath配置
@@ -38,7 +38,7 @@ exports.updateRepoPath = function(newRepoPath) {
  * @param {string} newRemoteUrl 新的远程仓库URL
  */
 exports.updateRemoteUrl = function(newRemoteUrl) {
-    const configPath = path.join(process.cwd(), 'config', 'gitConfig.js');
+    const configPath = path.join(process.cwd(), 'config\\gitConfig.js');
     let content = fs.readFileSync(configPath, 'utf8');
     
     // 使用正则表达式更新remoteUrl配置
@@ -56,7 +56,7 @@ exports.updateRemoteUrl = function(newRemoteUrl) {
  * @param {string} email 邮箱
  */
 const updateConfigFileUser = function(name, email) {
-    const configPath = path.join(process.cwd(), 'config', 'gitConfig.js');
+    const configPath = path.join(process.cwd(), 'config\\gitConfig.js');
     let content = fs.readFileSync(configPath, 'utf8');
     
     if (name) {
