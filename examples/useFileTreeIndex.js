@@ -44,7 +44,7 @@ const fileTreeResponse = {
           "utils": {
             "fileUtils.js": {},
             "gitTreeUtils.js": {},
-            "gitUtils.js": {}
+            "gitUtils.js": {},
           }
       }
     }

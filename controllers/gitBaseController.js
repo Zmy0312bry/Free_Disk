@@ -268,11 +268,9 @@ exports.uploadAndPush = async (req, res) => {
         console.log('检查是否有冲突...');
         const { stdout: diffOutput } = await execPromise(`git diff ${config.defaultBranch} ${config.remoteName}/${config.defaultBranch}`);
         
-        if (diffOutput.trim() !== '') {
-            console.log('检测到潜在冲突，执行git pull...');
-            await execPromise(`git pull ${config.remoteName} ${config.defaultBranch}`);
-        }
-        
+        console.log('执行git pull...');
+        await execPromise(`git pull ${config.remoteName} ${config.defaultBranch}`);
+
         // 步骤2：处理文件
         console.log('处理文件...');
         
