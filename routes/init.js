@@ -10,6 +10,8 @@ router.post('/config/remote-url', gitInitController.updateRemoteUrl);
 router.post('/config/user', gitInitController.updateUserConfig);
 //初始化下载路径
 router.post('/config/init-install-path', gitInitController.initInstallPath);
+//获取下载路径
+router.get('/config/get-install-path', gitInitController.getInstallPath);
 //初始化拉取
 router.post('/init-pull', gitBaseController.initPull);
 

@@ -36,4 +36,21 @@ router.post('/folder', fileController.createFolder);
  */
 router.post('/copy-to-install', fileController.copyFileToInstall);
 
+/**
+ * @api {delete} /api/file/delete 删除文件或文件夹
+ * @apiName DeleteFileOrFolder
+ * @apiGroup File
+ * 
+ * @apiParam {String} path 仓库内的文件或文件夹路径
+ * 
+ * @apiSuccess {Boolean} success 是否成功
+ * @apiSuccess {String} message 操作信息
+ * @apiSuccess {String} path 被删除的文件或文件夹路径
+ * 
+ * @apiError {Boolean} success 始终为false
+ * @apiError {String} message 错误信息
+ * @apiError {String} error 详细错误堆栈（仅开发环境）
+ */
+router.delete('/delete', fileController.deleteFileOrFolder);
+
 module.exports = router;

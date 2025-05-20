@@ -46,7 +46,8 @@ exports.getGitConfig = function() {
         remoteUrl: config.remoteUrl,
         repoPath: config.repoPath,
         defaultBranch: config.defaultBranch,
-        remoteName: config.remoteName
+        remoteName: config.remoteName,
+        installPath: config.installPath
     };
 };
 

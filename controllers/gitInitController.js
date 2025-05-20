@@ -151,3 +151,27 @@ exports.initInstallPath = function(req, res) {
         });
     }
 };
+
+/**
+ * 获取已配置的安装路径
+ * @param {Object} req - HTTP请求对象
+ * @param {Object} res - HTTP响应对象
+ */
+exports.getInstallPath = function(req, res) {
+    try {
+        const config = initUtils.getConfig();
+        const installPath = config.installPath || '';
+        
+        res.json({
+            success: true,
+            installPath
+        });
+    } catch (error) {
+        console.error('获取安装路径错误:', error);
+        res.status(500).json({
+            success: false,
+            message: `获取安装路径失败: ${error.message}`,
+            error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
+    }
+};
