@@ -1,53 +1,72 @@
-# 白嫖怪网盘后端
+# 白嫖怪网盘
 
-## 项目介绍
-白嫖怪网盘是一个开源的网盘系统后端项目，旨在提供高效、安全、易用的文件存储和管理服务。本项目专注于构建轻量级但功能完善的网盘解决方案，适合个人和小团队使用。项目基于 `Node.js` 和 `Git` 技术栈开发，支持文件**版本控制**、<mark>稀疏检出</mark>等高级特性。
+<div align="center">
+  <img src="./readme_picture/2.png" alt="白嫖怪网盘界面展示" width="600px" />
+  <p>基于 Git 的轻量高效网盘解决方案</p>
+</div>
 
+## 📝 项目介绍
+
+白嫖怪网盘是一个基于 `Node.js` 和 `Git` 技术栈开发的开源网盘系统后端，专为个人和小团队设计。项目整合了 Git 的版本控制能力与现代网盘系统的易用性，提供了一套完整的文件存储与管理解决方案。
+
+**核心特色**：
+- 利用 Git 的**版本控制**系统实现文件历史追踪
+- 通过**稀疏检出**技术优化大型仓库访问速度
+- 支持 **Git LFS** 存储大文件
+- 提供标准 **RESTful API** 接口，支持与多种前端框架集成
+
+👉 [白嫖怪网盘前端项目](https://github.com/Zmy0312bry/Free_disk_front)
 ## ✨ 项目优势
 
 ### 🚀 高性能设计
-- **稀疏检出优化**: 通过Git稀疏检出机制，实现大型仓库的快速访问
-- **增量同步机制**: 仅同步修改的文件，显著提升传输效率
-- **并发处理能力**: 支持多用户同时操作，性能稳定可靠
+- **稀疏检出优化**：选择性拉取需要的文件，显著降低网络传输量
+- **增量同步机制**：仅同步修改的文件，提升传输效率
+- **并发处理能力**：支持多用户同时操作，性能稳定可靠
 
 ### 🛡️ 安全可靠
-- **版本控制**: 基于Git的强大版本控制能力，支持文件历史追踪
-- **SSH密钥认证**: 采用安全的SSH密钥机制进行身份验证
-- **数据一致性**: 确保文件传输和存储的完整性
+- **版本控制**：基于 Git 的版本控制能力，支持文件历史追踪与回滚
+- **SSH密钥认证**：采用安全的 SSH 密钥机制进行身份验证
+- **数据一致性**：确保文件传输和存储的完整性
 
 ### 💡 智能特性
-- **LFS大文件支持**: 针对大文件优化的存储和传输方案
-- **自动化配置**: 提供一键配置功能，降低使用门槛
-- **状态监控**: 实时监控系统运行状态，提供详细日志
+- **LFS大文件支持**：针对大文件优化的存储和传输方案
+- **自动化配置**：提供一键配置功能，降低使用门槛
+- **状态监控**：实时监控系统运行状态，提供详细日志
 
 ### 🔧 扩展性强
-- **模块化设计**: 清晰的代码结构，便于功能扩展
-- **RESTful API**: 标准化的接口设计，支持多端接入
-- **配置灵活**: 支持自定义配置，适应不同场景需求
+- **模块化设计**：清晰的代码结构，便于功能扩展
+- **RESTful API**：标准化的接口设计，支持多端接入
+- **配置灵活**：支持自定义配置，适应不同场景需求
 
-## 功能特性
+## 🎮 功能特性
 
-- 🗂️ 文件管理
+- 🗂️ **文件管理**
   - 文件夹创建和管理
   - 文件上传和下载
   - 文件版本控制
   
-- 🔧 Git 集成
+- 🔧 **Git 集成**
   - 稀疏检出支持
   - Git LFS 支持
   - 安全的推送机制
   
-- 🔐 SSH 密钥管理
+- 🔐 **SSH 密钥管理**
   - SSH 密钥生成
   - 公钥获取
   
-- ⚙️ 系统配置
+- ⚙️ **系统配置**
   - 仓库路径配置
   - 远程仓库配置
   - 用户信息配置
   - 下载路径配置
 
-## 快速开始
+## 📋 待办事项
+
+1. 支持服务端自定义部署
+2. 支持更多网盘功能（如在线预览、协作编辑）
+3. 完善 UI 以及缺失界面，重构生命周期逻辑以支持更快的 Git 命令
+
+## 🚀 快速开始
 
 ### 系统要求
 
@@ -55,7 +74,7 @@
 - Git >= 2.25.0
 - Git LFS（可选，用于大文件存储）
 
-### 安装
+### 安装步骤
 
 ```bash
 # 克隆项目
@@ -68,7 +87,7 @@ cd Free_Disk
 npm install
 ```
 
-### 配置
+### 项目配置
 
 项目首次运行前需要进行基础配置：
 
@@ -79,22 +98,28 @@ npm install
 
 这些配置可以通过调用相应的 API 接口来完成。
 
-### 运行
+### 启动服务
 
 ```bash
-# 开发环境运行
+# 开发环境运行（支持热重载）
 npm run dev
 
 # 生产环境运行
 npm start
 ```
 
-服务将在 http://0.0.0.0:3001 启动
+服务将在 http://127.0.0.1:3001 启动
 
-### 调试
-项目提供了`Reqable`的调试接口json，路径在**Free-disk.reqable_collection.json**，可以<mark>**直接**</mark>导入调试，这是[下载链接](https://reqable.com/zh-CN/)，强烈推荐后端使用`Reqable`调试！
+### 调试指南
 
-## API 文档
+项目提供了 `Reqable` 调试接口集合，可直接导入调试：
+
+- 接口集合文件：**Free-disk.reqable_collection.json**
+- [Reqable 下载链接](https://reqable.com/zh-CN/)
+
+> 💡 **提示**：强烈推荐使用 `Reqable` 进行后端 API 调试！
+
+## 📘 API 文档
 
 ### 文件管理接口
 
@@ -224,7 +249,7 @@ npm start
   }
   ```
 
-## 错误处理
+## 🔄 错误处理
 
 所有接口在发生错误时会返回统一格式的错误响应：
 
@@ -235,7 +260,7 @@ npm start
 }
 ```
 
-在开发环境中，某些错误响应可能会包含额外的错误堆栈信息：
+在开发环境中，错误响应可能会包含额外的错误堆栈信息：
 
 ```json
 {
@@ -245,116 +270,124 @@ npm start
 }
 ```
 
-## 参考文献
+## 📚 集成示例与最佳实践
+
+### 📦 初始化流程（共4步）
+
+1. **创建并配置代码仓库**
+   ```http
+   POST http://<<HOST>>/init/init-repo
+   ```
+   `#仓库初始化 #基础配置`
+
+2. **设置远程仓库初始化拉取**
+   ```http
+   POST http://<<HOST>>/init/init-pull
+   ```
+   `#远程连接 #访问控制`
+
+3. **稀疏拉取优化**
+   ```http
+   POST http://<<HOST>>/git/sparse-init-empty
+   ```
+   `#性能优化 #稀疏拉取节省空间`
+
+4. **配置 Git LFS**
+   ```http
+   POST http://<<HOST>>/git/lfs-update
+   ```
+   `#资源管理 #版本控制`
+
+### 📤 文件上传流程（共3步）
+
+1. **创建目录结构**
+   ```http
+   POST http://<<HOST>>/file/folder
+   ```
+   `#路径管理 #文件夹操作`
+
+2. **文件上传**
+   ```http
+   POST http://<<HOST>>/git/upload-and-push
+   ```
+   `#数据传输 #内容存储`
+
+3. **推送到远程**
+   ```http
+   POST http://<<HOST>>/git/safe-push
+   ```
+   `#版本同步 #代码提交`
+
+### 📥 文件下载流程（共2步）
+
+1. **设置文件保存路径**
+   ```http
+   POST http://<<HOST>>/init/config/init-install-path
+   ```
+   `#路径配置 #下载准备`
+
+2. **执行文件复制下载**
+   ```http
+   POST http://<<HOST>>/file/copy-to-install
+   ```
+   `#内容获取 #文件传输`
+
+### 🔑 配置管理（共4步）
+
+1. **生成 SSH 密钥**
+   ```http
+   POST http://<<HOST>>/ssh/generate-key
+   ```
+   `#安全认证 #密钥管理`
+
+2. **获取 SSH 公钥**
+   ```http
+   GET http://<<HOST>>/ssh/get-key
+   ```
+   `#信息查询 #状态监控`
+
+3. **更新远程仓库 URL**
+   ```http
+   POST http://<<HOST>>/init/config/remote-url
+   ```
+   `#配置更新 #动态调整`
+
+4. **获取配置信息**
+   ```http
+   GET http://<<HOST>>/init/config
+   ```
+   `#状态查看 #配置审计`
+
+### ✨ 其他实用接口
+
+- **获取文件树**
+   ```http
+   GET http://<<HOST>>/git-tree
+   ```
+   `#便于解析 #获取JSON格式`
+
+- **稀疏检出操作**（需要按顺序调用）
+   ```http
+   POST http://<<HOST>>/git/sparse-update
+   POST http://<<HOST>>/git/sparse-pull
+   ```
+
+> 💡 **最佳实践**：按照初始化 → 上传/下载 → 配置管理的顺序调用接口，各流程间建议间隔5秒以上确保状态同步
+
+## 📚 参考资料
 
 1. [Git 稀疏检出官方文档](https://git-scm.cn/docs/git-sparse-checkout#Documentation/git-sparse-checkout.txt-codegitsparse-checkoutsetMYDIR1SUBDIR2code)
 2. [Git LFS 官方网站](https://git-lfs.com/) - Git Large File Storage 是一个用于版本控制大文件的开源 Git 扩展
 3. [simple-git NPM 包](https://www.npmjs.com/package/simple-git) - Node.js 中使用 Git 的工具库
 
+## 📄 许可证
 
-## 实际应用场景
-本项目是配合**Free-Disk**前端开发的`node.js`项目,以下为前端调用逻辑的解释
----
-### 📦 **初始化流程**（共4步）
-```http
-POST http://<<HOST>>/init/init-repo
-```
-▸ 创建并配置代码仓库  
-`#仓库初始化 #基础配置`
+本项目采用 MIT 许可证
 
-```http
-POST http://<<HOST>>/init/init-pull
-```
-▸ 设置远程仓库初始化拉取  
-`#远程连接 #访问控制`
+## 🤝 贡献
 
-```http
-POST http://<<HOST>>/git/sparse-init-empty
-```
-▸ 稀疏拉取优化大仓库性能  
-`#性能优化 #稀疏拉取节省空间`
-
-```http
-POST http://<<HOST>>/git/lfs-update
-```
-▸ 配置 Git LFS 大文件存储  
-`#资源管理 #版本控制`
+欢迎贡献代码或提出建议，请通过 GitHub Issues 或 Pull Requests 参与项目。
 
 ---
 
-### 📤 **文件上传流程**（共3步）
-```http
-POST http://<<HOST>>/file/folder
-```
-▸ 创建目录结构  
-`#路径管理 #文件夹操作`
-
-```http
-POST http://<<HOST>>/git/upload-and-push
-```
-▸ 文件上传至指定路径  
-`#数据传输 #内容存储`
-
-```http
-POST http://<<HOST>>/git/safe-push
-```
-▸ 本地修改推送到远程仓库  
-`#版本同步 #代码提交`
-
----
-
-### 📥 **文件下载流程**（共2步）
-```http
-POST http://<<HOST>>/init/config/init-install-path
-```
-▸ 设置文件保存路径  
-`#路径配置 #下载准备`
-
-```http
-POST http://<<HOST>>/file/copy-to-install
-```
-▸ 执行文件复制下载操作  
-`#内容获取 #文件传输`
-
----
-
-### 🔑 **配置管理**（共4步）
-```http
-POST http://<<HOST>>/ssh/generate-key
-```
-▸ 生成访问令牌/SSH密钥  
-`#安全认证 #密钥管理`
-
-```http
-GET http://<<HOST>>/ssh/get-key
-```
-▸ 获取已生成密钥信息  
-`#信息查询 #状态监控`
-
-```http
-POST http://<<HOST>>/init/config/remote-url
-```
-▸ 更新远程仓库url  
-`#配置更新 #动态调整`
-
-```http
-GET http://<<HOST>>/init/config
-```
-▸ 获取当前项目配置参数  
-`#状态查看 #配置审计`
-
-### ✨ **其他**
-```http
-GET http://<<HOST>>/git-tree
-```
-▸ 获取文件树 
-`#便于解析 #获取json格式`
-
-```http
-POST http://<<HOST>>/git/sparse-update
-POST http://<<HOST>>/git/sparse-pull
-```
-▸ 稀疏检出逻辑，两个接口要一起`先后使用` 
-
----
-> 💡 建议调用顺序：初始化 → 上传/下载 → 配置管理，各流程间建议间隔5秒以上确保状态同步
+🔗 **相关链接**：[白嫖怪网盘前端](https://github.com/Zmy0312bry/Free_disk_front)
